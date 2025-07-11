@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>簡易三消遊戲</title>
+  <style>
+    body { font-family: sans-serif; background: #f0f0f0; padding: 30px; }
+    .settings { background: #fff; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; display: inline-block;}
+    .board { display: grid; margin: 0 auto; background: #444; }
+    .cell {
+      width: 36px; height: 36px; border-radius: 6px; margin: 2px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; 
+      border: 2px solid #fff; transition: border 0.1s;
+      font-weight: bold;
+    }
+    .selected { border: 2px solid #222; }
+  </style>
+</head>
+<body>
+  <h2>簡易三消遊戲 Match-3</h2>
+  <div class="settings">
+    顏色數量：
+    <select id="colorCount">
+      <option value="3">3</option>
+      <option value="4" selected>4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+    </select>
+    版面大小：
+    <select id="boardSize">
+      <option value="6">6x6</option>
+      <option value="7">7x7</option>
+      <option value="8" selected>8x8</option>
+      <option value="9">9x9</option>
+    </select>
+    墜落速度(ms)：
+    <input type="number" id="fallSpeed" value="200" min="50" max="1000" step="10" style="width:60px;">
+    消除速度(ms)：
+    <input type="number" id="clearSpeed" value="200" min="50" max="1000" step="10" style="width:60px;">
+    <button onclick="resetGame()">重設遊戲</button>
+  </div>
+  <div id="board" class="board"></div>
+
+  <script>
+    // 可自訂顏色, 也可直接改成貼圖
+    const COLORS = [
+      "#FF6663", "#FEB144", "#9EE09E", "#9EC1CF",
+      "#CC99C9", "#B5EAD7", "#C7CEEA"
+    ];
+
+    let colorCount = 4;
+    let boardSize = 8;
+    let fallSpeed = 200;
+    let clearSpeed = 200;
+    let board = [];
+    let selected = null;
+    let busy = false;
+
+    // 監聽設定
+    document.getElementById("colorCount").addEventListener("change", e => {
+      colorCount = parseInt(e.target.value);
+      resetGame();
+    });
+    document.getElementById("boardSize").addEventListener("change", e => {
+      boardSize = parseInt(e.target.value);
+      resetGame();
+    });
+    document.getElementById("fallSpeed").addEventListener("change", e => {
+      fallSpeed = parseInt(e.target.value);
+    });
+    document.getElementById("clearSpeed").addEventListener("change", e => {
+      clearSpeed = parseInt(e.target.value);
+    });
+
+    function resetGame() {
+      board = Array.from({length: boardSize}, () =>
+        Array.from({length: boardSize}, () => Math.floor(Math.random() * colorCount))
+      );
+      selected = null;
+      busy = false;
+      renderBoard();
+      setTimeout(autoClear, 100);
+    }
+
+    function renderBoard() {
+      const boardDiv = document.getElementById("board");
+      boardDiv.style.gridTemplateColumns = `repeat(${boardSize}, 40px)`;
+      boardDiv.innerHTML = "";
+      board.forEach((row, r) => {
+        row.forEach((val, c) => {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          cell.style.background = COLORS[val];
+          cell.onclick = () => handleClick(r, c);
+          if(selected && selected[0] === r && selected[1] === c) cell.classList.add("selected");
+          // 若要換成圖片，把以下一行改成插入 <img>
+          // cell.innerHTML = `<img src="assets/img${val}.png" style="width:32px;">`;
+          boardDiv.appendChild(cell);
+        });
+      });
+    }
+
+    function handleClick(r, c) {
+      if(busy) return;
+      if(!selected) {
+        selected = [r, c];
+        renderBoard();
+      } else {
+        const [r0, c0] = selected;
+        if((Math.abs(r0-r)+Math.abs(c0-c)) === 1) {
+          swap([r0, c0], [r, c]);
+          selected = null;
+          renderBoard();
+          setTimeout(autoClear, 80);
+        } else {
+          selected = [r, c];
+          renderBoard();
+        }
+      }
+    }
+
+    function swap([r1,c1],[r2,c2]) {
+      let tmp = board[r1][c1];
+      board[r1][c1] = board[r2][c2];
+      board[r2][c2] = tmp;
+    }
+
+    function findMatches() {
+      let matches = [];
+      // 水平
+      for(let r=0;r<boardSize;r++) {
+        let count=1;
+        for(let c=1;c<boardSize;c++) {
+          if(board[r][c]!==null && board[r][c]===board[r][c-1]) count++;
+          else { if(count>=3) for(let k=1;k<=count;k++) matches.push([r,c-k]); count=1; }
+        }
+        if(count>=3) for(let k=1;k<=count;k++) matches.push([r,boardSize-k]);
+      }
+      // 垂直
+      for(let c=0;c<boardSize;c++) {
+        let count=1;
+        for(let r=1;r<boardSize;r++) {
+          if(board[r][c]!==null && board[r][c]===board[r-1][c]) count++;
+          else { if(count>=3) for(let k=1;k<=count;k++) matches.push([r-k,c]); count=1; }
+        }
+        if(count>=3) for(let k=1;k<=count;k++) matches.push([boardSize-k,c]);
+      }
+      // 移除重複
+      return matches.filter((m,i,a)=>a.findIndex(x=>x[0]===m[0]&&x[1]===m[1])===i);
+    }
+
+    function autoClear() {
+      if(busy) return;
+      let matches = findMatches();
+      if(matches.length>0) {
+        busy = true;
+        // 消除
+        matches.forEach(([r,c]) => board[r][c]=null);
+        renderBoard();
+        setTimeout(()=>{
+          // 下落
+          for(let c=0;c<boardSize;c++) {
+            let col = [];
+            for(let r=0;r<boardSize;r++) if(board[r][c]!==null) col.push(board[r][c]);
+            while(col.length<boardSize) col.unshift(null);
+            for(let r=0;r<boardSize;r++) board[r][c]=col[r];
+          }
+          renderBoard();
+          setTimeout(()=>{
+            // 補新
+            for(let r=0;r<boardSize;r++)
+              for(let c=0;c<boardSize;c++)
+                if(board[r][c]===null) board[r][c]=Math.floor(Math.random()*colorCount);
+            renderBoard();
+            busy=false;
+            setTimeout(autoClear, 80);
+          }, fallSpeed);
+        }, clearSpeed);
+      } else {
+        // 沒有可消除
+        if(!hasAnyMatches()) {
+          setTimeout(()=>{
+            resetGame();
+          }, 500);
+        }
+      }
+    }
+
+    function hasAnyMatches() {
+      // 若有三連就傳 true
+      // 水平
+      for(let r=0;r<boardSize;r++)
+        for(let c=0;c<boardSize-2;c++)
+          if(board[r][c]===board[r][c+1]&&board[r][c]===board[r][c+2]) return true;
+      // 垂直
+      for(let c=0;c<boardSize;c++)
+        for(let r=0;r<boardSize-2;r++)
+          if(board[r][c]===board[r+1][c]&&board[r][c]===board[r+2][c]) return true;
+      return false;
+    }
+
+    // 初始化
+    resetGame();
+  </script>
+</body>
+</html>
