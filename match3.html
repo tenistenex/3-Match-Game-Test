@@ -179,9 +179,9 @@
       } else {
         // 沒有可消除
         if(!hasAnyMatches()) {
-          setTimeout(()=>{
-            resetGame();
-          }, 500);
+          shuffleBoard();
+          renderBoard();
+          setTimeout(autoClear, 80);
         }
       }
     }
@@ -197,6 +197,20 @@
         for(let r=0;r<boardSize-2;r++)
           if(board[r][c]===board[r+1][c]&&board[r][c]===board[r+2][c]) return true;
       return false;
+    }
+
+    function shuffleBoard() {
+      const cells = [];
+      for(let r=0;r<boardSize;r++)
+        for(let c=0;c<boardSize;c++)
+          cells.push(board[r][c]);
+      for(let i=cells.length-1;i>0;i--) {
+        const j = Math.floor(Math.random()*(i+1));
+        [cells[i], cells[j]] = [cells[j], cells[i]];
+      }
+      for(let r=0, idx=0;r<boardSize;r++)
+        for(let c=0;c<boardSize;c++, idx++)
+          board[r][c] = cells[idx];
     }
 
     // 初始化
