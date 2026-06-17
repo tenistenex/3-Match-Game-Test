@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>簡易三消遊戲 Match-3</title>
+  <link rel="stylesheet" href="./assets/match3.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <section class="hero">
+      <p class="eyebrow">Match-3 Puzzle Game</p>
+      <h1>簡易三消遊戲</h1>
+      <p class="subtitle">點選相鄰方塊交換，湊成 3 個以上同色方塊即可消除。開場會保持靜止，只有玩家操作後才會開始結算。</p>
+    </section>
+
+    <section class="panel controls" aria-label="遊戲設定">
+      <label>顏色數量
+        <select id="colorCount">
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+        </select>
+      </label>
+      <label>版面大小
+        <select id="boardSize">
+          <option value="6">6x6</option>
+          <option value="7">7x7</option>
+          <option value="8" selected>8x8</option>
+          <option value="9">9x9</option>
+        </select>
+      </label>
+      <label>下落速度(ms)
+        <input type="number" id="fallSpeed" value="420" min="120" max="1200" step="10" />
+      </label>
+      <label>消除速度(ms)
+        <input type="number" id="clearSpeed" value="260" min="80" max="1000" step="10" />
+      </label>
+      <button id="resetButton" type="button">重設遊戲</button>
+      <button id="hintButton" type="button" class="secondary">提示</button>
+    </section>
+
+    <section class="stats" aria-label="遊戲狀態">
+      <article><span>分數</span><strong id="score">0</strong></article>
+      <article><span>步數</span><strong id="moves">30</strong></article>
+      <article><span>目標</span><strong id="target">1200</strong></article>
+      <article><span>時間</span><strong id="timer">00:00</strong></article>
+      <article><span>連鎖</span><strong id="combo">x1</strong></article>
+    </section>
+
+    <section class="game-layout">
+      <div id="board" class="board" aria-label="三消遊戲棋盤"></div>
+      <aside class="panel business-panel">
+        <h2>商業化常見功能</h2>
+        <ul>
+          <li>分數、目標分、剩餘步數與計時。</li>
+          <li>提示按鈕與無解自動重排。</li>
+          <li>勝利 / 失敗狀態提示。</li>
+          <li>動畫速度可調，方便做關卡難度。</li>
+        </ul>
+        <p id="status" class="status">請交換相鄰方塊開始遊戲。</p>
+      </aside>
+    </section>
+  </main>
+
+  <script src="./assets/match3.logic.js"></script>
+  <script src="./assets/match3.ui.js"></script>
+</body>
+</html>
