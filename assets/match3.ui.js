@@ -10,7 +10,7 @@
   ];
   const logic = window.Match3Logic;
   const $ = id => document.getElementById(id);
-  const DEFAULT_HP = 10;
+  const DEFAULT_HP = 100;
   const ENEMY_ATTACK = 10;
   const state = {
     board: [], size: 8, colorCount: 4, fallSpeed: 420, clearSpeed: 260,
@@ -147,7 +147,9 @@
     if (!state.startedAt) { $('timer').textContent = '00:00'; return; }
     const sec = Math.floor((Date.now() - state.startedAt) / 1000);
     $('timer').textContent = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
-    render();
+    $('playerAttackCountdown').textContent = formatCountdown(state.nextPlayerAttackAt);
+    $('enemyAttackCountdown').textContent = formatCountdown(state.nextEnemyAttackAt);
+    renderBattleStats();
   }
   function startTimers() {
     if (state.startedAt || state.ended) return;
@@ -204,11 +206,17 @@
       return;
     }
 
-    await resolveMatches();
-    state.busy = false;
-    state.combo = 1;
-    endTurnCheck();
-    render();
+    try {
+      await resolveMatches();
+      state.combo = 1;
+      endTurnCheck();
+    } catch (error) {
+      console.error(error);
+      setStatus('消除流程發生錯誤，已解除鎖定，請再試一次。');
+    } finally {
+      state.busy = false;
+      render();
+    }
   }
 
   async function resolveMatches() {
@@ -300,4 +308,13 @@
   $('hintButton').addEventListener('click', showHint);
   $('magicButton').addEventListener('click', useMagic);
   resetGame();
+
+  window.Match3Game = {
+    state,
+    resetGame,
+    handleCellClick,
+    resolveMatches,
+    playerAttack,
+    enemyAttack
+  };
 })();
