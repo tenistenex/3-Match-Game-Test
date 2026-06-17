@@ -45,7 +45,7 @@
       boardEl.style.setProperty('--board-size', state.size);
       boardEl.style.setProperty('--fall-duration', `${state.fallSpeed}ms`);
       boardEl.style.setProperty('--clear-duration', `${state.clearSpeed}ms`);
-      boardEl.innerHTML = '';
+      const renderedCells = [];
 
       state.board.forEach((row, r) => row.forEach((value, c) => {
         const pos = { r, c };
@@ -80,8 +80,11 @@
           div.style.setProperty('--from-y', `${-(spawning.get(key(pos)) + 1) * cellPixels()}px`);
         }
         if (hint.has(key(pos))) div.classList.add('hint');
-        boardEl.appendChild(div);
+        renderedCells.push(div);
       }));
+
+      boardEl.innerHTML = '';
+      renderedCells.forEach(cell => boardEl.appendChild(cell));
 
       $('score').textContent = state.score;
       $('moves').textContent = state.moves;
