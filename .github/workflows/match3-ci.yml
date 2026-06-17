@@ -21,11 +21,14 @@ jobs:
         with:
           node-version: 20
 
-      - name: Check UI script syntax
-        run: node --check assets/match3.ui.js
-
-      - name: Check game logic script syntax
-        run: node --check assets/match3.logic.js
+      - name: Check Match-3 script syntax
+        run: |
+          node --check assets/match3/config/block-types.js
+          node --check assets/match3/core/logic.js
+          node --check assets/match3/state/game-state.js
+          node --check assets/match3/ui/render.js
+          node --check assets/match3/systems/battle.js
+          node --check assets/match3/main.js
 
       - name: Run Match-3 UI regression tests
         run: node test/match3.test.js

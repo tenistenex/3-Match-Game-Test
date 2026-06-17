@@ -27,12 +27,18 @@ jobs:
 
       - name: Prepare static site
         run: |
-          mkdir -p dist/assets
+          rm -rf dist
+          mkdir -p dist
           cp index.html match3.html .nojekyll dist/
-          cp assets/match3.css assets/match3.logic.js assets/match3.ui.js dist/assets/
+          cp -R assets dist/
           test -s dist/index.html
-          test -s dist/assets/match3.logic.js
-          test -s dist/assets/match3.ui.js
+          test -s dist/assets/match3.css
+          test -s dist/assets/match3/config/block-types.js
+          test -s dist/assets/match3/core/logic.js
+          test -s dist/assets/match3/state/game-state.js
+          test -s dist/assets/match3/ui/render.js
+          test -s dist/assets/match3/systems/battle.js
+          test -s dist/assets/match3/main.js
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
