@@ -178,7 +178,6 @@ function assertBoardPanelRendered(elements, expectedSize, message) {
   context.window.Match3Game.state.busy = false;
   context.window.Match3Game.state.ended = false;
   const specialActivation = context.window.Match3Game.handleCellClick({ r: 0, c: 0 });
-  await wait(1);
   assert.equal(elements.board.children[0].style['--clear-duration'], '17ms', 'per-block clear speed should be applied to clearing cells');
   await specialActivation;
   assert.ok(Number(elements.roundAttack.textContent) > 0, 'activated special blocks should accumulate cleared block effects');
