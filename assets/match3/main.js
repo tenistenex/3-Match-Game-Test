@@ -26,6 +26,36 @@
 
   function updateAttackTimer() { renderBattleStats(); }
 
+  function posKey(pos) { return `${pos.r},${pos.c}`; }
+
+  function specialName(special) {
+    return special === 'line-row' ? '橫列消除' : special === 'line-column' ? '直行消除' : special === 'bomb' ? '九宮格爆炸' : '同色全消';
+  }
+
+  function chooseSpecialAnchor(group) {
+    if (state.selected) {
+      const picked = group.cells.find(cell => cell.r === state.selected.r && cell.c === state.selected.c);
+      if (picked) return picked;
+    }
+    return group.cells[Math.floor(group.cells.length / 2)];
+  }
+
+  function cellsForSpecial(pos) {
+    const block = state.board[pos.r][pos.c];
+    if (!logic.isSpecialBlock(block)) return [];
+    const cells = new Map();
+    const add = (r, c) => { if (r >= 0 && c >= 0 && r < state.size && c < state.size) cells.set(`${r},${c}`, { r, c }); };
+    if (block.special === logic.SPECIAL_TYPES.LINE_ROW) for (let c = 0; c < state.size; c++) add(pos.r, c);
+    else if (block.special === logic.SPECIAL_TYPES.LINE_COLUMN) for (let r = 0; r < state.size; r++) add(r, pos.c);
+    else if (block.special === logic.SPECIAL_TYPES.BOMB) {
+      for (let r = pos.r - 1; r <= pos.r + 1; r++) for (let c = pos.c - 1; c <= pos.c + 1; c++) add(r, c);
+    } else if (block.special === logic.SPECIAL_TYPES.COLOR) {
+      const color = block.color;
+      state.board.forEach((row, r) => row.forEach((value, c) => { if (value !== null && logic.colorOf(value) === color) add(r, c); }));
+    }
+    return Array.from(cells.values());
+  }
+
   function useMagic() {
     if (state.ended || state.magicArmed || state.roundStats.spell < 5) return;
     state.roundStats.spell -= 5;
@@ -74,20 +104,40 @@
   async function handleCellClick(pos) {
     if (state.busy || state.moves <= 0 || state.ended) return;
     state.hint = [];
+    const clickedBlock = state.board[pos.r][pos.c];
+    if (!state.selected && logic.isSpecialBlock(clickedBlock)) {
+      startTimers();
+      state.busy = true;
+      state.moves--;
+      await activateSpecial(pos);
+      state.combo = 1;
+      endTurnCheck();
+      state.busy = false;
+      render();
+      return;
+    }
     if (!state.selected) { state.selected = pos; render(); return; }
     if (!logic.areAdjacent(state.selected, pos)) { state.selected = pos; render(); return; }
+
+    const selectedBlock = state.board[state.selected.r][state.selected.c];
+    if (logic.isSpecialBlock(selectedBlock) && logic.isSpecialBlock(clickedBlock)) {
+      setStatus('特殊方塊互換的連鎖效果已保留，之後可以接在這裡擴充。');
+      state.selected = null;
+      render();
+      return;
+    }
 
     startTimers();
     state.busy = true;
     const previous = state.board;
     state.board = logic.swap(state.board, state.selected, pos);
-    state.selected = null;
     state.moves--;
     render();
     await sleep(120);
 
     if (logic.findMatches(state.board).length === 0) {
       state.board = previous;
+      state.selected = null;
       setStatus('這一步沒有形成三消，已幫你換回來。');
       state.busy = false;
       render();
@@ -96,6 +146,7 @@
 
     try {
       await resolveMatches();
+      state.selected = null;
       state.combo = 1;
       endTurnCheck();
     } catch (error) {
@@ -107,24 +158,55 @@
     }
   }
 
-  async function resolveMatches() {
-    let matches = logic.findMatches(state.board);
-    while (matches.length > 0) {
-      setStatus(`消除 ${matches.length} 個方塊，效果已累積到本輪計時器。`);
-      state.score += matches.length * 20 * state.combo;
-      render({ clearing: matches });
-      await sleep(state.clearSpeed);
-      matches.forEach(({ r, c }) => {
-        const type = blockType(state.board[r][c]);
-        state.roundStats[type.stat] += 1;
-        state.board[r][c] = null;
+  function collectMatchResult() {
+    const groups = logic.findMatchGroups(state.board);
+    const clearing = new Map();
+    const specials = [];
+    groups.forEach(group => {
+      const special = logic.getSpecialForGroup(group);
+      const anchor = special ? chooseSpecialAnchor(group) : null;
+      group.cells.forEach(cell => {
+        if (!anchor || cell.r !== anchor.r || cell.c !== anchor.c) clearing.set(posKey(cell), cell);
       });
-      const collapsed = logic.collapse(state.board, state.colorCount);
-      state.board = collapsed.board;
-      render({ fallMoves: collapsed.fallMoves, spawnMoves: collapsed.spawnMoves });
-      await sleep(state.fallSpeed);
-      state.combo++;
-      matches = logic.findMatches(state.board);
+      if (special && anchor) specials.push({ ...anchor, color: group.color, special });
+    });
+    return { groups, clearing: Array.from(clearing.values()), specials };
+  }
+
+  async function clearCells(cells, message) {
+    if (cells.length === 0) return;
+    setStatus(message);
+    state.score += cells.length * 20 * state.combo;
+    render({ clearing: cells });
+    await sleep(state.clearSpeed);
+    cells.forEach(({ r, c }) => {
+      if (state.board[r][c] === null) return;
+      const type = blockType(logic.colorOf(state.board[r][c]));
+      state.roundStats[type.stat] += 1;
+      state.board[r][c] = null;
+    });
+    const collapsed = logic.collapse(state.board, state.colorCount);
+    state.board = collapsed.board;
+    render({ fallMoves: collapsed.fallMoves, spawnMoves: collapsed.spawnMoves });
+    await sleep(state.fallSpeed);
+    state.combo++;
+  }
+
+  async function activateSpecial(pos) {
+    const block = state.board[pos.r][pos.c];
+    const cells = cellsForSpecial(pos);
+    await clearCells(cells, `啟動「${specialName(block.special)}」特殊方塊，消除 ${cells.length} 個方塊。`);
+    await resolveMatches();
+  }
+
+  async function resolveMatches() {
+    let result = collectMatchResult();
+    while (result.groups.length > 0) {
+      const specialText = result.specials.length ? `，產生 ${result.specials.length} 個特殊方塊` : '';
+      setStatus(`消除 ${result.clearing.length} 個方塊${specialText}，效果已累積到本輪計時器。`);
+      result.specials.forEach(({ r, c, color, special }) => { state.board[r][c] = logic.createSpecialBlock(color, special); });
+      await clearCells(result.clearing, `消除 ${result.clearing.length} 個方塊${specialText}，效果已累積到本輪計時器。`);
+      result = collectMatchResult();
     }
   }
 
