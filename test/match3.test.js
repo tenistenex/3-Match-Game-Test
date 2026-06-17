@@ -32,6 +32,7 @@ function createElement(id = 'created') {
     setAttribute(name, value) { this.attributes[name] = value; },
     appendChild(child) { this.children.push(child); return child; },
     addEventListener(type, handler) { this.listeners[type] = handler; },
+    querySelectorAll() { return []; },
     click() { if (this.listeners.click) return this.listeners.click({ target: this }); },
   };
   return element;
@@ -43,9 +44,9 @@ function createHarness() {
     'enemyAttackCountdown', 'roundAttack', 'roundDefense', 'roundSpell', 'roundHeal', 'battleLog',
     'heroSprite', 'enemySprite', 'hintButton', 'resetButton', 'playerHpText', 'enemyHpText',
     'playerHpBar', 'enemyHpBar', 'playerAttackBar', 'enemyAttackBar', 'attackValue', 'defenseValue',
-    'magicValue', 'attackMeter', 'defenseMeter', 'magicMeter', 'magicButton', 'timer', 'status',
+    'magicValue', 'healValue', 'attackMeter', 'defenseMeter', 'magicMeter', 'healMeter', 'magicButton', 'timer', 'status',
     'boardSize', 'colorCount', 'fallSpeed', 'clearSpeed', 'attackInterval', 'enemyInterval', 'attackTimer',
-    'playerMaxHpInput', 'enemyMaxHpInput', 'attackMultiplier', 'defenseMultiplier', 'enemyAttackPower'
+    'playerMaxHpInput', 'enemyMaxHpInput', 'attackMultiplier', 'defenseMultiplier', 'enemyAttackPower', 'blockSettings'
   ];
   const elements = Object.fromEntries(ids.map(id => [id, createElement(id)]));
   Object.assign(elements.boardSize, { value: '8' });
@@ -105,6 +106,7 @@ function wait(ms) {
   assert.equal(elements.playerHp.textContent, '120/120');
   assert.equal(elements.enemyHp.textContent, '150/150');
   assert.equal(elements.moves.textContent, 30);
+  assert.equal(elements.healValue.textContent, '0 / 100', 'heal should have an accumulation meter');
 
   elements.hintButton.click();
   assert.equal(elements.board.children.filter(cell => cell.classList.contains('hint')).length, 2, 'hint should mark one swappable pair');
@@ -136,6 +138,36 @@ function wait(ms) {
   assert.equal(logic.getSpecialForGroup({ orientation: 'row', cells: [{}, {}, {}, {}, {}] }), logic.SPECIAL_TYPES.COLOR, 'five matched blocks should make a color-clear special');
   const special = logic.createSpecialBlock(2, logic.SPECIAL_TYPES.BOMB);
   assert.equal(logic.colorOf(special), 2, 'special blocks should keep their original color');
+
+  context.window.Match3Config.BLOCK_TYPES[0].weight = 0;
+  context.window.Match3Config.BLOCK_TYPES[1].weight = 10;
+  assert.equal(logic.createRandomBlock(2), 1, 'block spawn weights should control random block generation');
+  context.window.Match3Config.BLOCK_TYPES[0].weight = 1;
+  context.window.Match3Config.BLOCK_TYPES[1].weight = 1;
+
+  elements.resetButton.click();
+  context.window.Match3Config.BLOCK_TYPES[0].clearSpeed = 17;
+  context.window.Match3Game.state.board = [
+    [logic.createSpecialBlock(0, logic.SPECIAL_TYPES.LINE_ROW), 0, 1, 2, 3, 0, 1, 2],
+    [1, 2, 3, 0, 1, 2, 3, 0],
+    [2, 3, 0, 1, 2, 3, 0, 1],
+    [3, 0, 1, 2, 3, 0, 1, 2],
+    [0, 1, 2, 3, 0, 1, 2, 3],
+    [1, 2, 3, 0, 1, 2, 3, 0],
+    [2, 3, 0, 1, 2, 3, 0, 1],
+    [3, 0, 1, 2, 3, 0, 1, 2],
+  ];
+  context.window.Match3Game.state.roundStats = context.window.Match3State.createRoundStats();
+  context.window.Match3Game.state.moves = 30;
+  context.window.Match3Game.state.startedAt = null;
+  context.window.Match3Game.state.busy = false;
+  context.window.Match3Game.state.ended = false;
+  const specialActivation = context.window.Match3Game.handleCellClick({ r: 0, c: 0 });
+  await wait(1);
+  assert.equal(elements.board.children[0].style['--clear-duration'], '17ms', 'per-block clear speed should be applied to clearing cells');
+  await specialActivation;
+  assert.ok(Number(elements.roundAttack.textContent) > 0, 'activated special blocks should accumulate cleared block effects');
+  context.window.Match3Config.BLOCK_TYPES[0].clearSpeed = 260;
 
   elements.resetButton.click();
   assert.equal(elements.board.children.length, 64, 'reset should immediately render the board');

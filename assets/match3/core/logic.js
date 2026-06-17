@@ -33,6 +33,9 @@
     createSpecialBlock,
 
     createRandomBlock(colorCount) {
+      if (global.Match3Config && global.Match3Config.randomBlockIndex) {
+        return createNormalBlock(global.Match3Config.randomBlockIndex(colorCount));
+      }
       return createNormalBlock(Math.floor(Math.random() * colorCount));
     },
 
