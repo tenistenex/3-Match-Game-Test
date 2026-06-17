@@ -37,6 +37,11 @@
       <label>消除速度(ms)
         <input type="number" id="clearSpeed" value="260" min="80" max="1000" step="10" />
       </label>
+      <details class="block-settings">
+        <summary>每種方塊參數</summary>
+        <p>出現權重越高越常出現；消除速度會套用在該方塊的消除動畫。</p>
+        <div id="blockSettings" class="block-settings-grid"></div>
+      </details>
       <label>我方攻擊頻率(秒)
         <input type="number" id="attackInterval" value="5" min="1" max="30" step="1" />
       </label>
@@ -113,6 +118,11 @@
           <span>魔法</span>
           <strong id="magicValue">0 / 100</strong>
           <div class="bar"><span id="magicMeter"></span></div>
+        </div>
+        <div class="meter-row">
+          <span>回血</span>
+          <strong id="healValue">0 / 100</strong>
+          <div class="bar"><span id="healMeter"></span></div>
         </div>
         <button id="magicButton" type="button" class="magic-button">使用魔法（下次攻擊 x2）</button>
         <p class="meter-note">魔法每 50 點可使用 1 次，最多累積 2 次。</p>

@@ -1,6 +1,6 @@
 (function () {
   const logic = window.Match3Logic;
-  const { blockType } = window.Match3Config;
+  const { BLOCK_TYPES, activeBlockTypes, blockType } = window.Match3Config;
   const { createState, resetRoundStats } = window.Match3State;
   const { $, clamp, setStatus } = window.Match3Dom;
   const state = createState();
@@ -56,6 +56,42 @@
     return Array.from(cells.values());
   }
 
+  function blockClearSpeed(value) {
+    if (value === null) return state.clearSpeed;
+    const type = blockType(logic.colorOf(value));
+    return Math.max(1, Number(type.clearSpeed) || state.clearSpeed);
+  }
+
+  function renderBlockSettings() {
+    const container = $('blockSettings');
+    if (!container) return;
+    container.innerHTML = '';
+    activeBlockTypes(state.colorCount).forEach((type, index) => {
+      const card = document.createElement('div');
+      card.className = 'block-setting-card';
+      card.innerHTML = `
+        <strong><span aria-hidden="true">${type.icon}</span>${type.name}</strong>
+        <label>出現權重
+          <input type="number" min="0" max="99" step="0.1" value="${type.weight}" data-block-index="${index}" data-block-field="weight" />
+        </label>
+        <label>消除速度(ms)
+          <input type="number" min="80" max="2000" step="10" value="${type.clearSpeed}" data-block-index="${index}" data-block-field="clearSpeed" />
+        </label>
+      `;
+      card.querySelectorAll('input').forEach(input => {
+        input.addEventListener('change', event => {
+          const target = event.target;
+          const block = BLOCK_TYPES[Number(target.dataset.blockIndex)];
+          const field = target.dataset.blockField;
+          block[field] = field === 'weight' ? Math.max(0, Number(target.value) || 0) : Math.max(1, Number(target.value) || state.clearSpeed);
+          if (field === 'weight') resetGame();
+          else render();
+        });
+      });
+      container.appendChild(card);
+    });
+  }
+
   function useMagic() {
     if (state.ended || state.magicArmed || state.roundStats.spell < 5) return;
     state.roundStats.spell -= 5;
@@ -95,6 +131,7 @@
     Object.assign(state, { size: Number($('boardSize').value), colorCount: Number($('colorCount').value), fallSpeed: Number($('fallSpeed').value), clearSpeed: Number($('clearSpeed').value), attackInterval: Number($('attackInterval').value), enemyInterval: Number($('enemyInterval').value), attackMultiplier: Math.max(0, Number($('attackMultiplier').value)), defenseMultiplier: Math.max(0, Number($('defenseMultiplier').value)), enemyAttackPower: Math.max(0, Number($('enemyAttackPower').value)), selected: null, busy: false, score: 0, moves: 30, target: Number($('boardSize').value) * 150, combo: 1, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
     resetRoundStats(state);
     state.board = logic.createBoard(state.size, state.colorCount);
+    renderBlockSettings();
     updateTimer();
     updateAttackTimer();
     setStatus('請交換相鄰方塊開始遊戲。');
@@ -121,8 +158,14 @@
 
     const selectedBlock = state.board[state.selected.r][state.selected.c];
     if (logic.isSpecialBlock(selectedBlock) && logic.isSpecialBlock(clickedBlock)) {
-      setStatus('特殊方塊互換的連鎖效果已保留，之後可以接在這裡擴充。');
+      startTimers();
+      state.busy = true;
+      state.moves--;
+      await activateSpecialPair(state.selected, pos);
       state.selected = null;
+      state.combo = 1;
+      endTurnCheck();
+      state.busy = false;
       render();
       return;
     }
@@ -177,8 +220,9 @@
     if (cells.length === 0) return;
     setStatus(message);
     state.score += cells.length * 20 * state.combo;
+    const waitMs = cells.reduce((duration, { r, c }) => Math.max(duration, blockClearSpeed(state.board[r][c])), state.clearSpeed);
     render({ clearing: cells });
-    await sleep(state.clearSpeed);
+    await sleep(waitMs);
     cells.forEach(({ r, c }) => {
       if (state.board[r][c] === null) return;
       const type = blockType(logic.colorOf(state.board[r][c]));
@@ -196,6 +240,19 @@
     const block = state.board[pos.r][pos.c];
     const cells = cellsForSpecial(pos);
     await clearCells(cells, `啟動「${specialName(block.special)}」特殊方塊，消除 ${cells.length} 個方塊。`);
+    await resolveMatches();
+  }
+
+
+  async function activateSpecialPair(first, second) {
+    const firstBlock = state.board[first.r][first.c];
+    const secondBlock = state.board[second.r][second.c];
+    const cells = new Map();
+    [first, second].forEach(pos => cellsForSpecial(pos).forEach(cell => cells.set(posKey(cell), cell)));
+    cells.set(posKey(first), first);
+    cells.set(posKey(second), second);
+    await clearCells(Array.from(cells.values()), `啟動兩顆特殊方塊，合併消除 ${cells.size} 個方塊並累積效果。`);
+    state.lastAction = `特殊方塊連鎖：${specialName(firstBlock.special)} + ${specialName(secondBlock.special)}。`;
     await resolveMatches();
   }
 

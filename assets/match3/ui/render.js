@@ -16,8 +16,10 @@
       const attack = state.roundStats.attack * state.attackMultiplier;
       const defense = state.roundStats.defense * state.defenseMultiplier;
       const magic = state.roundStats.spell * 10;
+      const heal = state.roundStats.heal;
       const attackMeterMax = Math.max(100, state.enemyMaxHp);
       const defenseMeterMax = Math.max(100, state.enemyAttackPower);
+      const healMeterMax = Math.max(100, state.playerMaxHp - state.playerHp);
 
       $('attackTimer').textContent = formatCountdown(state.nextPlayerAttackAt) === '--' ? `${state.attackInterval}.0s` : formatCountdown(state.nextPlayerAttackAt);
       $('playerHpText').textContent = `${formatNumber(state.playerHp)} / ${formatNumber(state.playerMaxHp)}`;
@@ -29,9 +31,11 @@
       $('attackValue').textContent = `${formatNumber(attack)} / ${formatNumber(attackMeterMax)}`;
       $('defenseValue').textContent = `${formatNumber(defense)} / ${formatNumber(defenseMeterMax)}`;
       $('magicValue').textContent = `${formatNumber(clamp(magic, 0, 100))} / 100`;
+      $('healValue').textContent = `${formatNumber(heal)} / ${formatNumber(healMeterMax)}`;
       setBar('attackMeter', attack, attackMeterMax);
       setBar('defenseMeter', defense, defenseMeterMax);
       setBar('magicMeter', magic);
+      setBar('healMeter', heal, healMeterMax);
       $('magicButton').disabled = state.ended || state.magicArmed || state.roundStats.spell < 5;
       $('magicButton').textContent = state.magicArmed ? '魔法已準備：下次攻擊 x2' : '使用魔法（消耗 5 法術，下次攻擊 x2）';
     }
@@ -70,7 +74,13 @@
           div.addEventListener('click', () => onCellClick(pos));
         }
         if (state.selected && state.selected.r === r && state.selected.c === c) div.classList.add('selected');
-        if (clearing.has(key(pos))) div.classList.add('clearing');
+        if (clearing.has(key(pos))) {
+          div.classList.add('clearing');
+          if (value !== null) {
+            const type = blockType(window.Match3Logic && window.Match3Logic.colorOf ? window.Match3Logic.colorOf(value) : value);
+            div.style.setProperty('--clear-duration', `${type.clearSpeed || state.clearSpeed}ms`);
+          }
+        }
         if (falling.has(key(pos))) {
           div.classList.add('falling');
           div.style.setProperty('--from-y', `${-falling.get(key(pos)) * cellPixels()}px`);
