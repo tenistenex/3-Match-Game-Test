@@ -48,6 +48,15 @@
 
   function updateAttackTimer() { renderBattleStats(); }
 
+  function beginPlayerOperation() {
+    state.currentTurnCombo = 0;
+  }
+
+  function finishPlayerOperation() {
+    state.lastComboCount = state.currentTurnCombo;
+    state.currentTurnCombo = 0;
+  }
+
   function posKey(pos) { return `${pos.r},${pos.c}`; }
 
   function specialName(special) {
@@ -159,7 +168,7 @@
     const colorCount = readIntegerInput('colorCount', state.colorCount || 4, { min: 3, max: BLOCK_TYPES.length });
     const playerMaxHp = readIntegerInput('playerMaxHpInput', state.playerMaxHp || 100, { min: 1, max: 9999 });
     const enemyMaxHp = readIntegerInput('enemyMaxHpInput', state.enemyMaxHp || 100, { min: 1, max: 9999 });
-    Object.assign(state, { size, colorCount, fallSpeed: readNumberInput('fallSpeed', state.fallSpeed || 420, { min: 1, max: 5000 }), clearSpeed: readNumberInput('clearSpeed', state.clearSpeed || 260, { min: 1, max: 5000 }), attackInterval: readNumberInput('attackInterval', state.attackInterval || 5, { min: 1, max: 3600 }), enemyInterval: readNumberInput('enemyInterval', state.enemyInterval || 5, { min: 1, max: 3600 }), attackMultiplier: readNumberInput('attackMultiplier', state.attackMultiplier || 1, { min: 0, max: 999 }), defenseMultiplier: readNumberInput('defenseMultiplier', state.defenseMultiplier || 1, { min: 0, max: 999 }), enemyAttackPower: readNumberInput('enemyAttackPower', state.enemyAttackPower || 10, { min: 0, max: 9999 }), selected: null, busy: false, score: 0, moves: 30, target: size * 150, combo: 1, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
+    Object.assign(state, { size, colorCount, fallSpeed: readNumberInput('fallSpeed', state.fallSpeed || 420, { min: 1, max: 5000 }), clearSpeed: readNumberInput('clearSpeed', state.clearSpeed || 260, { min: 1, max: 5000 }), attackInterval: readNumberInput('attackInterval', state.attackInterval || 5, { min: 1, max: 3600 }), enemyInterval: readNumberInput('enemyInterval', state.enemyInterval || 5, { min: 1, max: 3600 }), attackMultiplier: readNumberInput('attackMultiplier', state.attackMultiplier || 1, { min: 0, max: 999 }), defenseMultiplier: readNumberInput('defenseMultiplier', state.defenseMultiplier || 1, { min: 0, max: 999 }), enemyAttackPower: readNumberInput('enemyAttackPower', state.enemyAttackPower || 10, { min: 0, max: 9999 }), selected: null, busy: false, score: 0, moves: 30, target: size * 150, combo: 1, currentTurnCombo: 0, lastComboCount: 0, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
     resetRoundStats(state);
     state.board = logic.createBoard(state.size, state.colorCount);
     renderBlockSettings();
@@ -175,9 +184,11 @@
     const clickedBlock = state.board[pos.r][pos.c];
     if (!state.selected && logic.isSpecialBlock(clickedBlock)) {
       startTimers();
+      beginPlayerOperation();
       state.busy = true;
       state.moves--;
       await activateSpecial(pos);
+      finishPlayerOperation();
       state.combo = 1;
       endTurnCheck();
       state.busy = false;
@@ -190,10 +201,12 @@
     const selectedBlock = state.board[state.selected.r][state.selected.c];
     if (logic.isSpecialBlock(selectedBlock) && logic.isSpecialBlock(clickedBlock)) {
       startTimers();
+      beginPlayerOperation();
       state.busy = true;
       state.moves--;
       await activateSpecialPair(state.selected, pos);
       state.selected = null;
+      finishPlayerOperation();
       state.combo = 1;
       endTurnCheck();
       state.busy = false;
@@ -202,6 +215,7 @@
     }
 
     startTimers();
+    beginPlayerOperation();
     state.busy = true;
     const previous = state.board;
     state.board = logic.swap(state.board, state.selected, pos);
@@ -221,6 +235,7 @@
     try {
       await resolveMatches();
       state.selected = null;
+      finishPlayerOperation();
       state.combo = 1;
       endTurnCheck();
     } catch (error) {
@@ -264,6 +279,7 @@
     state.board = collapsed.board;
     render({ fallMoves: collapsed.fallMoves, spawnMoves: collapsed.spawnMoves });
     await sleep(state.fallSpeed);
+    state.currentTurnCombo++;
     state.combo++;
   }
 
