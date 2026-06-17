@@ -1,0 +1,26 @@
+(function (global) {
+  const DEFAULT_HP = 100;
+  const ENEMY_ATTACK = 10;
+
+  function createRoundStats() {
+    return { attack: 0, defense: 0, spell: 0, heal: 0 };
+  }
+
+  function createState() {
+    return {
+      board: [], size: 8, colorCount: 4, fallSpeed: 420, clearSpeed: 260,
+      selected: null, busy: false, score: 0, moves: 30, target: 1200, combo: 1,
+      startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null,
+      hint: [], playerHp: DEFAULT_HP, enemyHp: DEFAULT_HP, maxHp: DEFAULT_HP,
+      attackInterval: 5, enemyInterval: 5, nextPlayerAttackAt: null, nextEnemyAttackAt: null,
+      roundStats: createRoundStats(),
+      lastAction: '尚未攻擊。', heroAction: false, enemyAction: false, ended: false, magicArmed: false
+    };
+  }
+
+  function resetRoundStats(state) {
+    state.roundStats = createRoundStats();
+  }
+
+  global.Match3State = { DEFAULT_HP, ENEMY_ATTACK, createState, createRoundStats, resetRoundStats };
+})(window);

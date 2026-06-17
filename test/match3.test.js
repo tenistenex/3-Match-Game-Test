@@ -82,8 +82,14 @@ function createHarness() {
   };
   context.window = context;
   vm.createContext(context);
-  vm.runInContext(fs.readFileSync('assets/match3.logic.js', 'utf8'), context);
-  vm.runInContext(fs.readFileSync('assets/match3.ui.js', 'utf8'), context);
+  [
+    'assets/match3/config/block-types.js',
+    'assets/match3/core/logic.js',
+    'assets/match3/state/game-state.js',
+    'assets/match3/ui/render.js',
+    'assets/match3/systems/battle.js',
+    'assets/match3/main.js',
+  ].forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context));
   return { context, elements };
 }
 
