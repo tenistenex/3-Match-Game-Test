@@ -18,6 +18,21 @@
   function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
   function sleepMsFromSeconds(seconds) { return Math.max(1, Number(seconds)) * 1000; }
   function formatNumber(value) { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
+
+  function readNumberInput(id, fallback, range) {
+    const limits = range || {};
+    const min = limits.min === undefined ? -Infinity : limits.min;
+    const max = limits.max === undefined ? Infinity : limits.max;
+    const raw = $(id).value;
+    const value = raw === '' || raw === null || raw === undefined ? NaN : Number(raw);
+    const safe = Number.isFinite(value) ? value : fallback;
+    return clamp(safe, min, max);
+  }
+
+  function readIntegerInput(id, fallback, range) {
+    return Math.round(readNumberInput(id, fallback, range));
+  }
+
   function formatCountdown(target) {
     if (!target || state.ended) return '--';
     return `${Math.max(0, Math.ceil((target - Date.now()) / 1000))}s`;
@@ -95,7 +110,7 @@
           <input type="number" min="80" max="2000" step="10" value="${type.clearSpeed}" data-block-index="${index}" data-block-field="clearSpeed" />
         </label>
       `;
-      card.querySelectorAll('input').forEach(input => {
+      Array.prototype.forEach.call(card.querySelectorAll('input'), input => {
         input.addEventListener('change', event => {
           const target = event.target;
           const block = BLOCK_TYPES[Number(target.dataset.blockIndex)];
@@ -143,9 +158,11 @@
 
   function resetGame() {
     stopTimers();
-    const playerMaxHp = Math.max(1, Number($('playerMaxHpInput').value));
-    const enemyMaxHp = Math.max(1, Number($('enemyMaxHpInput').value));
-    Object.assign(state, { size: Number($('boardSize').value), colorCount: Number($('colorCount').value), fallSpeed: Number($('fallSpeed').value), clearSpeed: Number($('clearSpeed').value), attackInterval: Number($('attackInterval').value), enemyInterval: Number($('enemyInterval').value), attackMultiplier: Math.max(0, Number($('attackMultiplier').value)), defenseMultiplier: Math.max(0, Number($('defenseMultiplier').value)), enemyAttackPower: Math.max(0, Number($('enemyAttackPower').value)), selected: null, busy: false, score: 0, moves: 30, target: Number($('boardSize').value) * 150, combo: 1, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
+    const size = readIntegerInput('boardSize', state.size || 8, { min: 3, max: 12 });
+    const colorCount = readIntegerInput('colorCount', state.colorCount || 4, { min: 3, max: BLOCK_TYPES.length });
+    const playerMaxHp = readIntegerInput('playerMaxHpInput', state.playerMaxHp || 100, { min: 1, max: 9999 });
+    const enemyMaxHp = readIntegerInput('enemyMaxHpInput', state.enemyMaxHp || 100, { min: 1, max: 9999 });
+    Object.assign(state, { size, colorCount, fallSpeed: readNumberInput('fallSpeed', state.fallSpeed || 420, { min: 1, max: 5000 }), clearSpeed: readNumberInput('clearSpeed', state.clearSpeed || 260, { min: 1, max: 5000 }), attackInterval: readNumberInput('attackInterval', state.attackInterval || 5, { min: 1, max: 3600 }), enemyInterval: readNumberInput('enemyInterval', state.enemyInterval || 5, { min: 1, max: 3600 }), attackMultiplier: readNumberInput('attackMultiplier', state.attackMultiplier || 1, { min: 0, max: 999 }), defenseMultiplier: readNumberInput('defenseMultiplier', state.defenseMultiplier || 1, { min: 0, max: 999 }), enemyAttackPower: readNumberInput('enemyAttackPower', state.enemyAttackPower || 10, { min: 0, max: 9999 }), selected: null, busy: false, score: 0, moves: 30, target: size * 150, combo: 1, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
     resetRoundStats(state);
     state.board = logic.createBoard(state.size, state.colorCount);
     renderBlockSettings();
