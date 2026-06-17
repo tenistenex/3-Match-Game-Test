@@ -1,5 +1,5 @@
 (function (global) {
-  function createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, enemyAttackPower }) {
+  function createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, formatNumber }) {
     function flashActor(actor) {
       if (actor === 'hero') state.heroAction = true;
       else state.enemyAction = true;
@@ -15,12 +15,12 @@
 
     function playerAttack() {
       if (state.ended) return;
-      const baseDamage = state.roundStats.attack + (state.roundStats.spell * 2);
+      const baseDamage = (state.roundStats.attack * state.attackMultiplier) + (state.roundStats.spell * 2);
       const damage = state.magicArmed ? baseDamage * 2 : baseDamage;
       const heal = state.roundStats.heal;
-      state.enemyHp = clamp(state.enemyHp - damage, 0, state.maxHp);
-      state.playerHp = clamp(state.playerHp + heal, 0, state.maxHp);
-      state.lastAction = `我方攻擊造成 ${damage} 傷害${state.magicArmed ? '（魔法 x2）' : ''}，回血 ${heal}。防禦會保留到敵方攻擊結算。`;
+      state.enemyHp = clamp(state.enemyHp - damage, 0, state.enemyMaxHp);
+      state.playerHp = clamp(state.playerHp + heal, 0, state.playerMaxHp);
+      state.lastAction = `我方攻擊造成 ${formatNumber(damage)} 傷害${state.magicArmed ? '（魔法 x2）' : ''}，回血 ${formatNumber(heal)}。防禦會保留到敵方攻擊結算。`;
       state.roundStats.attack = 0;
       state.roundStats.spell = 0;
       state.roundStats.heal = 0;
@@ -32,10 +32,10 @@
 
     function enemyAttack() {
       if (state.ended) return;
-      const blocked = Math.min(enemyAttackPower, state.roundStats.defense);
-      const damage = enemyAttackPower - blocked;
-      state.playerHp = clamp(state.playerHp - damage, 0, state.maxHp);
-      state.lastAction = `敵方攻擊 ${enemyAttackPower}，防禦方塊抵擋 ${blocked}，我方受到 ${damage} 傷害。`;
+      const blocked = Math.min(state.enemyAttackPower, state.roundStats.defense * state.defenseMultiplier);
+      const damage = state.enemyAttackPower - blocked;
+      state.playerHp = clamp(state.playerHp - damage, 0, state.playerMaxHp);
+      state.lastAction = `敵方攻擊 ${formatNumber(state.enemyAttackPower)}，防禦方塊抵擋 ${formatNumber(blocked)}，我方受到 ${formatNumber(damage)} 傷害。`;
       resetRoundStats(state);
       state.nextEnemyAttackAt = Date.now() + sleepMsFromSeconds(state.enemyInterval);
       flashActor('enemy');

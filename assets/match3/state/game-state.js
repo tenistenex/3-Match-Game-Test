@@ -11,7 +11,8 @@
       board: [], size: 8, colorCount: 4, fallSpeed: 420, clearSpeed: 260,
       selected: null, busy: false, score: 0, moves: 30, target: 1200, combo: 1,
       startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null,
-      hint: [], playerHp: DEFAULT_HP, enemyHp: DEFAULT_HP, maxHp: DEFAULT_HP,
+      hint: [], playerHp: DEFAULT_HP, enemyHp: DEFAULT_HP, playerMaxHp: DEFAULT_HP, enemyMaxHp: DEFAULT_HP,
+      attackMultiplier: 1, defenseMultiplier: 1, enemyAttackPower: ENEMY_ATTACK,
       attackInterval: 5, enemyInterval: 5, nextPlayerAttackAt: null, nextEnemyAttackAt: null,
       roundStats: createRoundStats(),
       lastAction: '尚未攻擊。', heroAction: false, enemyAction: false, ended: false, magicArmed: false
