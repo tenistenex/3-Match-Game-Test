@@ -18,7 +18,7 @@ select, input, button { min-height: 40px; border-radius: 10px; border: 1px solid
 button { background: #2563eb; color: white; border: 0; cursor: pointer; font-weight: 800; }
 button.secondary { background: #64748b; }
 button:disabled { opacity: .55; cursor: not-allowed; }
-.stats { display: grid; grid-template-columns: repeat(5, minmax(110px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .stats article { padding: 14px; }
 .stats span { display: block; color: #64748b; font-size: 14px; }
 .stats strong { font-size: 26px; }

@@ -89,6 +89,7 @@
     $('enemySprite').classList.toggle('attacking', state.enemyAction);
     $('hintButton').disabled = state.busy || state.ended;
     $('resetButton').disabled = state.busy;
+    renderBattleStats();
   }
 
   function formatCountdown(target) {
@@ -96,6 +97,33 @@
     return `${Math.max(0, Math.ceil((target - Date.now()) / 1000))}s`;
   }
   function setStatus(text) { $('status').textContent = text; }
+  function setBar(id, value, max = 100) {
+    $(id).style.width = `${clamp(value, 0, max) / max * 100}%`;
+  }
+
+  function renderBattleStats() {
+    const attack = clamp(state.pendingAttack, 0, 100);
+    const defense = clamp(state.pendingDefense, 0, 100);
+    const magic = clamp(state.pendingMagic, 0, 100);
+    const remaining = state.nextAttackAt ? clamp(state.nextAttackAt - Date.now(), 0, state.attackInterval) : state.attackInterval;
+    const countdownPercent = state.attackInterval ? (state.attackInterval - remaining) / state.attackInterval * 100 : 0;
+
+    $('playerHpText').textContent = `${state.playerHp} / ${state.maxHp}`;
+    $('enemyHpText').textContent = `${state.enemyHp} / ${state.maxHp}`;
+    setBar('playerHpBar', state.playerHp, state.maxHp);
+    setBar('enemyHpBar', state.enemyHp, state.maxHp);
+    setBar('playerAttackBar', countdownPercent);
+    setBar('enemyAttackBar', countdownPercent);
+    $('attackValue').textContent = `${attack} / 100`;
+    $('defenseValue').textContent = `${defense} / 100`;
+    $('magicValue').textContent = `${magic} / 100`;
+    setBar('attackMeter', attack);
+    setBar('defenseMeter', defense);
+    setBar('magicMeter', magic);
+    $('magicButton').disabled = state.battleEnded || state.magicArmed || state.pendingMagic < 50;
+    $('magicButton').textContent = state.magicArmed ? '魔法已準備：下次攻擊 x2' : '使用魔法（下次攻擊 x2）';
+  }
+
   function updateTimer() {
     if (!state.startedAt) { $('timer').textContent = '00:00'; return; }
     const sec = Math.floor((Date.now() - state.startedAt) / 1000);
@@ -123,6 +151,7 @@
     resetRoundStats();
     state.board = logic.createBoard(state.size, state.colorCount);
     updateTimer();
+    updateAttackTimer();
     setStatus('請交換相鄰方塊開始遊戲。');
     render();
   }
@@ -166,6 +195,7 @@
         state.roundStats[type.stat] += 1;
       });
       state.score += matches.length * 20 * state.combo;
+      matches.forEach(({ r, c }) => accumulateBlockEffect(state.board[r][c]));
       render({ clearing: matches });
       await sleep(state.clearSpeed);
       matches.forEach(({ r, c }) => { state.board[r][c] = null; });
@@ -246,5 +276,6 @@
   $('enemyInterval').addEventListener('change', resetGame);
   $('resetButton').addEventListener('click', resetGame);
   $('hintButton').addEventListener('click', showHint);
+  $('magicButton').addEventListener('click', useMagic);
   resetGame();
 })();
