@@ -95,3 +95,23 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .special-icon { position: absolute; right: 2px; bottom: 0; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 999px; background: rgba(17,24,39,.82); color: white; font-size: 12px; line-height: 1; z-index: 1; }
 .cell-icon { position: relative; z-index: 1; }
 @keyframes special-spin { to { transform: rotate(360deg); } }
+.damage-popup {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  z-index: 3;
+  pointer-events: none;
+  transform: translateX(-50%);
+  color: #dc2626;
+  font-size: 22px;
+  font-weight: 900;
+  text-shadow: 0 2px 0 #fff, 0 0 8px rgba(255,255,255,.9);
+  animation: damage-float 900ms ease-out forwards;
+}
+.damage-popup.heal { color: #16a34a; }
+@keyframes damage-float {
+  from { opacity: 0; transform: translate(-50%, 8px) scale(.85); }
+  20% { opacity: 1; transform: translate(-50%, 0) scale(1.15); }
+  to { opacity: 0; transform: translate(-50%, -34px) scale(1); }
+}
+.fighter { position: relative; }
