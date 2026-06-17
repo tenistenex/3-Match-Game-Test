@@ -4,6 +4,16 @@
   const { createState, resetRoundStats } = window.Match3State;
   const { $, clamp, setStatus } = window.Match3Dom;
   const state = createState();
+  const showDebugOptions = (() => {
+    const search = window.location && window.location.search ? window.location.search : '';
+    const debugMatch = search.match(/[?&]debugOptions=([^&]*)/);
+    if (debugMatch) {
+      const value = decodeURIComponent(debugMatch[1]);
+      return value !== 'false' && value !== '0';
+    }
+    if (/[?&]debugOptions(?:&|$)/.test(search)) return true;
+    return window.MATCH3_SHOW_DEBUG_OPTIONS === true;
+  })();
 
   function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
   function sleepMsFromSeconds(seconds) { return Math.max(1, Number(seconds)) * 1000; }
@@ -60,6 +70,13 @@
     if (value === null) return state.clearSpeed;
     const type = blockType(logic.colorOf(value));
     return Math.max(1, Number(type.clearSpeed) || state.clearSpeed);
+  }
+
+  function applyDebugOptionVisibility() {
+    if (!document.querySelectorAll) return;
+    document.querySelectorAll('[data-debug-option]').forEach(element => {
+      element.hidden = !showDebugOptions;
+    });
   }
 
   function renderBlockSettings() {
@@ -244,15 +261,36 @@
   }
 
 
+  function isLineSpecial(block) {
+    return logic.isSpecialBlock(block) && (block.special === logic.SPECIAL_TYPES.LINE_ROW || block.special === logic.SPECIAL_TYPES.LINE_COLUMN);
+  }
+
+  function cellsForLineSpecialPair(first, second) {
+    const cells = new Map();
+    for (let c = 0; c < state.size; c++) cells.set(posKey({ r: first.r, c }), { r: first.r, c });
+    for (let r = 0; r < state.size; r++) cells.set(posKey({ r, c: second.c }), { r, c: second.c });
+    cells.set(posKey(first), first);
+    cells.set(posKey(second), second);
+    return Array.from(cells.values());
+  }
+
   async function activateSpecialPair(first, second) {
     const firstBlock = state.board[first.r][first.c];
     const secondBlock = state.board[second.r][second.c];
+    const linePair = isLineSpecial(firstBlock) && isLineSpecial(secondBlock);
     const cells = new Map();
-    [first, second].forEach(pos => cellsForSpecial(pos).forEach(cell => cells.set(posKey(cell), cell)));
-    cells.set(posKey(first), first);
-    cells.set(posKey(second), second);
-    await clearCells(Array.from(cells.values()), `啟動兩顆特殊方塊，合併消除 ${cells.size} 個方塊並累積效果。`);
-    state.lastAction = `特殊方塊連鎖：${specialName(firstBlock.special)} + ${specialName(secondBlock.special)}。`;
+    if (linePair) {
+      cellsForLineSpecialPair(first, second).forEach(cell => cells.set(posKey(cell), cell));
+    } else {
+      [first, second].forEach(pos => cellsForSpecial(pos).forEach(cell => cells.set(posKey(cell), cell)));
+      cells.set(posKey(first), first);
+      cells.set(posKey(second), second);
+    }
+    const message = linePair
+      ? `兩顆四消特殊方塊交換，改為消除 1 條橫列與 1 條直行，共 ${cells.size} 格。`
+      : `啟動兩顆特殊方塊，合併消除 ${cells.size} 個方塊並累積效果。`;
+    await clearCells(Array.from(cells.values()), message);
+    state.lastAction = linePair ? '特殊方塊連鎖：四消 + 四消，消除橫列與直行。' : `特殊方塊連鎖：${specialName(firstBlock.special)} + ${specialName(secondBlock.special)}。`;
     await resolveMatches();
   }
 
@@ -288,6 +326,8 @@
     render();
   }
 
+  applyDebugOptionVisibility();
+
   const renderer = window.Match3Renderer.createRenderer({ state, blockType, formatCountdown, countdownProgress, onCellClick: handleCellClick });
   render = renderer.render;
   renderBattleStats = renderer.renderBattleStats;
@@ -306,5 +346,5 @@
   $('magicButton').addEventListener('click', useMagic);
   resetGame();
 
-  window.Match3Game = { state, resetGame, handleCellClick, resolveMatches, playerAttack, enemyAttack };
+  window.Match3Game = { state, resetGame, handleCellClick, resolveMatches, playerAttack, enemyAttack, showDebugOptions };
 })();

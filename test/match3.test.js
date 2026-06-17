@@ -107,6 +107,7 @@ function wait(ms) {
   assert.equal(elements.enemyHp.textContent, '150/150');
   assert.equal(elements.moves.textContent, 30);
   assert.equal(elements.healValue.textContent, '0 / 100', 'heal should have an accumulation meter');
+  assert.equal(context.window.Match3Game.showDebugOptions, false, 'debug option controls should be hidden by default');
 
   elements.hintButton.click();
   assert.equal(elements.board.children.filter(cell => cell.classList.contains('hint')).length, 2, 'hint should mark one swappable pair');
@@ -168,6 +169,13 @@ function wait(ms) {
   await specialActivation;
   assert.ok(Number(elements.roundAttack.textContent) > 0, 'activated special blocks should accumulate cleared block effects');
   context.window.Match3Config.BLOCK_TYPES[0].clearSpeed = 260;
+
+  elements.resetButton.click();
+  context.window.Match3Game.state.roundStats.attack = 7;
+  context.window.Match3Game.state.attackMultiplier = 2;
+  context.window.Match3Game.playerAttack();
+  assert.equal(context.window.Match3Game.state.enemyHp, 136, 'player attack should apply the actual calculated damage');
+  assert.equal(context.window.Match3Game.state.damagePopups[0].text, '-14', 'player attack should create a damage number popup');
 
   elements.resetButton.click();
   assert.equal(elements.board.children.length, 64, 'reset should immediately render the board');

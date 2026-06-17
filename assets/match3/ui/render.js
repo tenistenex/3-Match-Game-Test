@@ -109,6 +109,19 @@
       $('roundSpell').textContent = state.roundStats.spell;
       $('roundHeal').textContent = state.roundStats.heal;
       $('battleLog').textContent = state.lastAction;
+      const heroFighter = $('heroSprite').parentElement;
+      const enemyFighter = $('enemySprite').parentElement;
+      if (heroFighter && enemyFighter) {
+        heroFighter.querySelectorAll('.damage-popup').forEach(element => element.remove());
+        enemyFighter.querySelectorAll('.damage-popup').forEach(element => element.remove());
+        state.damagePopups.forEach(popup => {
+          const target = popup.target === 'enemy' ? enemyFighter : heroFighter;
+          const label = document.createElement('span');
+          label.className = `damage-popup ${popup.kind || 'damage'}`;
+          label.textContent = popup.text;
+          target.appendChild(label);
+        });
+      }
       $('heroSprite').classList.toggle('attacking', state.heroAction);
       $('enemySprite').classList.toggle('attacking', state.enemyAction);
       $('hintButton').disabled = state.busy || state.ended;

@@ -15,7 +15,7 @@
     </section>
 
     <section class="panel controls" aria-label="遊戲設定">
-      <label>顏色數量
+      <label data-debug-option>顏色數量
         <select id="colorCount">
           <option value="3">3</option>
           <option value="4" selected>4</option>
@@ -23,7 +23,7 @@
           <option value="6">6</option>
         </select>
       </label>
-      <label>版面大小
+      <label data-debug-option>版面大小
         <select id="boardSize">
           <option value="6">6x6</option>
           <option value="7">7x7</option>
@@ -31,36 +31,36 @@
           <option value="9">9x9</option>
         </select>
       </label>
-      <label>下落速度(ms)
+      <label data-debug-option>下落速度(ms)
         <input type="number" id="fallSpeed" value="420" min="120" max="1200" step="10" />
       </label>
-      <label>消除速度(ms)
+      <label data-debug-option>消除速度(ms)
         <input type="number" id="clearSpeed" value="260" min="80" max="1000" step="10" />
       </label>
-      <details class="block-settings">
+      <details class="block-settings" data-debug-option>
         <summary>每種方塊參數</summary>
         <p>出現權重越高越常出現；消除速度會套用在該方塊的消除動畫。</p>
         <div id="blockSettings" class="block-settings-grid"></div>
       </details>
-      <label>我方攻擊頻率(秒)
+      <label data-debug-option>我方攻擊頻率(秒)
         <input type="number" id="attackInterval" value="5" min="1" max="30" step="1" />
       </label>
-      <label>敵方攻擊頻率(秒)
+      <label data-debug-option>敵方攻擊頻率(秒)
         <input type="number" id="enemyInterval" value="5" min="1" max="30" step="1" />
       </label>
-      <label>我方血量
+      <label data-debug-option>我方血量
         <input type="number" id="playerMaxHpInput" value="100" min="1" max="999" step="1" />
       </label>
-      <label>敵方血量
+      <label data-debug-option>敵方血量
         <input type="number" id="enemyMaxHpInput" value="100" min="1" max="999" step="1" />
       </label>
-      <label>攻擊力倍數
+      <label data-debug-option>攻擊力倍數
         <input type="number" id="attackMultiplier" value="1" min="0" max="99" step="0.1" />
       </label>
-      <label>防禦力倍數
+      <label data-debug-option>防禦力倍數
         <input type="number" id="defenseMultiplier" value="1" min="0" max="99" step="0.1" />
       </label>
-      <label>敵方攻擊力
+      <label data-debug-option>敵方攻擊力
         <input type="number" id="enemyAttackPower" value="10" min="0" max="999" step="1" />
       </label>
       <button id="resetButton" type="button">重設遊戲</button>
