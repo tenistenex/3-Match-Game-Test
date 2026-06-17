@@ -73,7 +73,7 @@
       <article><span>目標</span><strong id="target">1200</strong></article>
       <article><span>時間</span><strong id="timer">00:00</strong></article>
       <article><span>攻擊倒數</span><strong id="attackTimer">5.0s</strong></article>
-      <article><span>連鎖</span><strong id="combo">x1</strong></article>
+      <article><span>連擊</span><strong id="combo">連擊 0</strong></article>
       <article><span>我方血量</span><strong id="playerHp">100/100</strong></article>
       <article><span>敵方血量</span><strong id="enemyHp">100/100</strong></article>
       <article><span>我方攻擊</span><strong id="playerAttackCountdown">--</strong></article>
@@ -149,9 +149,10 @@
         </div>
         <ul>
           <li>預設方塊效果：攻擊、防禦、法術、回血。</li>
+          <li>連擊數會記錄玩家最後一次操作後，總共觸發了幾次消除。</li>
           <li>提示按鈕會標出目前可交換、且交換後能形成三消的一組相鄰方塊。</li>
-          <li>我方攻擊時間到時，消除的攻擊方塊數 × 攻擊力倍數，會變成這次對敵方造成的傷害。</li>
-          <li>敵方攻擊時間到時，消除的防禦方塊數 × 防禦力倍數，會抵消敵方攻擊。</li>
+          <li>我方攻擊時間到時，傷害 = 消除攻擊方塊數 × 1.1 的連擊數次方 × 攻擊力倍數。</li>
+          <li>敵方攻擊時間到時，防禦會抵消敵方攻擊；每次敵方計時器重置後，累積防禦會砍半。</li>
         </ul>
         <p id="battleLog" class="battle-log">尚未攻擊。</p>
         <p id="status" class="status">請交換相鄰方塊開始遊戲。</p>
