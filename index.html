@@ -37,6 +37,9 @@
       <label>消除速度(ms)
         <input type="number" id="clearSpeed" value="260" min="80" max="1000" step="10" />
       </label>
+      <label>攻擊間隔(ms)
+        <input type="number" id="attackInterval" value="5000" min="1000" max="30000" step="100" />
+      </label>
       <button id="resetButton" type="button">重設遊戲</button>
       <button id="hintButton" type="button" class="secondary">提示</button>
     </section>
@@ -46,10 +49,52 @@
       <article><span>步數</span><strong id="moves">30</strong></article>
       <article><span>目標</span><strong id="target">1200</strong></article>
       <article><span>時間</span><strong id="timer">00:00</strong></article>
+      <article><span>攻擊倒數</span><strong id="attackTimer">5.0s</strong></article>
       <article><span>連鎖</span><strong id="combo">x1</strong></article>
     </section>
 
+    <section class="battle-panel" aria-label="戰鬥狀態">
+      <article class="fighter-card">
+        <div class="attack-countdown">
+          <span>下次攻擊</span>
+          <div class="bar"><span id="playerAttackBar"></span></div>
+        </div>
+        <div class="fighter-avatar">勇者</div>
+        <strong id="playerHpText">100 / 100</strong>
+        <div class="bar hp"><span id="playerHpBar"></span></div>
+      </article>
+      <article class="fighter-card enemy">
+        <div class="attack-countdown">
+          <span>下次攻擊</span>
+          <div class="bar"><span id="enemyAttackBar"></span></div>
+        </div>
+        <div class="fighter-avatar">魔王</div>
+        <strong id="enemyHpText">100 / 100</strong>
+        <div class="bar hp"><span id="enemyHpBar"></span></div>
+      </article>
+    </section>
+
     <section class="game-layout">
+      <aside class="panel accumulation-panel" aria-label="累積戰鬥效果">
+        <h2>累積效果</h2>
+        <div class="meter-row">
+          <span>攻擊</span>
+          <strong id="attackValue">0 / 100</strong>
+          <div class="bar"><span id="attackMeter"></span></div>
+        </div>
+        <div class="meter-row">
+          <span>防禦</span>
+          <strong id="defenseValue">0 / 100</strong>
+          <div class="bar"><span id="defenseMeter"></span></div>
+        </div>
+        <div class="meter-row">
+          <span>魔法</span>
+          <strong id="magicValue">0 / 100</strong>
+          <div class="bar"><span id="magicMeter"></span></div>
+        </div>
+        <button id="magicButton" type="button" class="magic-button">使用魔法（下次攻擊 x2）</button>
+        <p class="meter-note">魔法每 50 點可使用 1 次，最多累積 2 次。</p>
+      </aside>
       <div id="board" class="board" aria-label="三消遊戲棋盤"></div>
       <aside class="panel business-panel">
         <h2>商業化常見功能</h2>
