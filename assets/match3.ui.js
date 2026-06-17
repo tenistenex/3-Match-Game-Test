@@ -164,6 +164,12 @@
 
   function resetRoundStats() { state.roundStats = { attack: 0, defense: 0, spell: 0, heal: 0 }; }
 
+  function accumulateBlockEffect(value) {
+    if (value === null) return;
+    const type = blockType(value);
+    state.roundStats[type.stat] += 1;
+  }
+
   function resetGame() {
     stopTimers();
     Object.assign(state, { size: Number($('boardSize').value), colorCount: Number($('colorCount').value), fallSpeed: Number($('fallSpeed').value), clearSpeed: Number($('clearSpeed').value), attackInterval: Number($('attackInterval').value), enemyInterval: Number($('enemyInterval').value), selected: null, busy: false, score: 0, moves: 30, target: Number($('boardSize').value) * 150, combo: 1, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: DEFAULT_HP, enemyHp: DEFAULT_HP, maxHp: DEFAULT_HP, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
@@ -209,10 +215,6 @@
     let matches = logic.findMatches(state.board);
     while (matches.length > 0) {
       setStatus(`消除 ${matches.length} 個方塊，效果已累積到本輪計時器。`);
-      matches.forEach(({ r, c }) => {
-        const type = blockType(state.board[r][c]);
-        state.roundStats[type.stat] += 1;
-      });
       state.score += matches.length * 20 * state.combo;
       render({ clearing: matches });
       await sleep(state.clearSpeed);
