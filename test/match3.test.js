@@ -44,7 +44,8 @@ function createHarness() {
     'heroSprite', 'enemySprite', 'hintButton', 'resetButton', 'playerHpText', 'enemyHpText',
     'playerHpBar', 'enemyHpBar', 'playerAttackBar', 'enemyAttackBar', 'attackValue', 'defenseValue',
     'magicValue', 'attackMeter', 'defenseMeter', 'magicMeter', 'magicButton', 'timer', 'status',
-    'boardSize', 'colorCount', 'fallSpeed', 'clearSpeed', 'attackInterval', 'enemyInterval', 'attackTimer'
+    'boardSize', 'colorCount', 'fallSpeed', 'clearSpeed', 'attackInterval', 'enemyInterval', 'attackTimer',
+    'playerMaxHpInput', 'enemyMaxHpInput', 'attackMultiplier', 'defenseMultiplier', 'enemyAttackPower'
   ];
   const elements = Object.fromEntries(ids.map(id => [id, createElement(id)]));
   Object.assign(elements.boardSize, { value: '8' });
@@ -53,6 +54,11 @@ function createHarness() {
   Object.assign(elements.clearSpeed, { value: '1' });
   Object.assign(elements.attackInterval, { value: '30' });
   Object.assign(elements.enemyInterval, { value: '30' });
+  Object.assign(elements.playerMaxHpInput, { value: '120' });
+  Object.assign(elements.enemyMaxHpInput, { value: '150' });
+  Object.assign(elements.attackMultiplier, { value: '2' });
+  Object.assign(elements.defenseMultiplier, { value: '3' });
+  Object.assign(elements.enemyAttackPower, { value: '12' });
 
   const context = {
     window: {},
@@ -90,6 +96,8 @@ function wait(ms) {
 
   assert.equal(elements.board.children.length, 64, 'initial board should render 8x8 cells');
   assert.equal(elements.status.textContent, '請交換相鄰方塊開始遊戲。');
+  assert.equal(elements.playerHp.textContent, '120/120');
+  assert.equal(elements.enemyHp.textContent, '150/150');
   assert.equal(elements.moves.textContent, 30);
 
   elements.hintButton.click();
@@ -105,11 +113,14 @@ function wait(ms) {
   const [first, second] = move;
   elements.board.children[first.r * 8 + first.c].click();
   elements.board.children[second.r * 8 + second.c].click();
-  await wait(100);
+  await wait(1000);
 
   assert.equal(elements.moves.textContent, 29, 'valid swap should consume one move');
   assert.equal(elements.board.children.length, 64, 'board should still have 64 cells after resolving a move');
   assert.doesNotThrow(() => context.window.Match3Logic.findAvailableMove(currentBoard()));
+  const totalAccumulated = Number(elements.roundAttack.textContent) + Number(elements.roundDefense.textContent) +
+    Number(elements.roundSpell.textContent) + Number(elements.roundHeal.textContent);
+  assert.ok(totalAccumulated > 0, 'cleared blocks should accumulate battle effects');
 
   elements.resetButton.click();
   assert.equal(elements.board.children.length, 64, 'reset should immediately render the board');

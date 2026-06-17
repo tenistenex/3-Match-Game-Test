@@ -43,6 +43,21 @@
       <label>敵方攻擊頻率(秒)
         <input type="number" id="enemyInterval" value="5" min="1" max="30" step="1" />
       </label>
+      <label>我方血量
+        <input type="number" id="playerMaxHpInput" value="100" min="1" max="999" step="1" />
+      </label>
+      <label>敵方血量
+        <input type="number" id="enemyMaxHpInput" value="100" min="1" max="999" step="1" />
+      </label>
+      <label>攻擊力倍數
+        <input type="number" id="attackMultiplier" value="1" min="0" max="99" step="0.1" />
+      </label>
+      <label>防禦力倍數
+        <input type="number" id="defenseMultiplier" value="1" min="0" max="99" step="0.1" />
+      </label>
+      <label>敵方攻擊力
+        <input type="number" id="enemyAttackPower" value="10" min="0" max="999" step="1" />
+      </label>
       <button id="resetButton" type="button">重設遊戲</button>
       <button id="hintButton" type="button" class="secondary">提示</button>
     </section>
@@ -125,8 +140,8 @@
         <ul>
           <li>預設方塊效果：攻擊、防禦、法術、回血。</li>
           <li>提示按鈕會標出目前可交換、且交換後能形成三消的一組相鄰方塊。</li>
-          <li>我方攻擊時間到時，會用攻擊與法術傷害攻擊敵方，回血方塊會回復我方血量。</li>
-          <li>敵方攻擊預設 10，會扣掉本輪防禦方塊，剩餘傷害扣我方血量。</li>
+          <li>我方攻擊時間到時，消除的攻擊方塊數 × 攻擊力倍數，會變成這次對敵方造成的傷害。</li>
+          <li>敵方攻擊時間到時，消除的防禦方塊數 × 防禦力倍數，會抵消敵方攻擊。</li>
         </ul>
         <p id="battleLog" class="battle-log">尚未攻擊。</p>
         <p id="status" class="status">請交換相鄰方塊開始遊戲。</p>
