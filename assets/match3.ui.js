@@ -1,12 +1,32 @@
 (function () {
-  const COLORS = ['#FF6663', '#FEB144', '#9EE09E', '#9EC1CF', '#CC99C9', '#B5EAD7', '#C7CEEA'];
+  const BLOCK_TYPES = [
+    { name: '攻擊', icon: '⚔', color: '#FF6663', stat: 'attack' },
+    { name: '防禦', icon: '🛡', color: '#60A5FA', stat: 'defense' },
+    { name: '法術', icon: '✦', color: '#A78BFA', stat: 'spell' },
+    { name: '回血', icon: '❤', color: '#34D399', stat: 'heal' },
+    { name: '火焰', icon: '🔥', color: '#FEB144', stat: 'attack' },
+    { name: '自然', icon: '☘', color: '#9EE09E', stat: 'heal' },
+    { name: '星光', icon: '★', color: '#FDE68A', stat: 'spell' }
+  ];
   const logic = window.Match3Logic;
   const $ = id => document.getElementById(id);
-  const state = { board: [], size: 8, colorCount: 4, fallSpeed: 420, clearSpeed: 260, attackInterval: 5000, attackTimerId: null, nextAttackAt: null, pendingAttack: 0, pendingDefense: 0, pendingMagic: 0, pendingHeal: 0, playerHp: 100, enemyHp: 100, maxHp: 100, magicArmed: false, battleEnded: false, selected: null, busy: false, score: 0, moves: 30, target: 1200, combo: 1, startedAt: null, timerId: null, hint: [] };
+  const DEFAULT_HP = 10;
+  const ENEMY_ATTACK = 10;
+  const state = {
+    board: [], size: 8, colorCount: 4, fallSpeed: 420, clearSpeed: 260,
+    selected: null, busy: false, score: 0, moves: 30, target: 1200, combo: 1,
+    startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null,
+    hint: [], playerHp: DEFAULT_HP, enemyHp: DEFAULT_HP, maxHp: DEFAULT_HP,
+    attackInterval: 5, enemyInterval: 5, nextPlayerAttackAt: null, nextEnemyAttackAt: null,
+    roundStats: { attack: 0, defense: 0, spell: 0, heal: 0 },
+    lastAction: '尚未攻擊。', heroAction: false, enemyAction: false, ended: false
+  };
 
   function key(pos) { return `${pos.r},${pos.c}`; }
   function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
-  function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
+  function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+  function blockType(value) { return BLOCK_TYPES[value % BLOCK_TYPES.length]; }
+  function sleepMsFromSeconds(seconds) { return Math.max(1, Number(seconds)) * 1000; }
   function cellPixels() {
     const root = getComputedStyle(document.documentElement);
     return parseFloat(root.getPropertyValue('--cell-size')) + parseFloat(root.getPropertyValue('--gap'));
@@ -31,7 +51,11 @@
       div.setAttribute('aria-label', `第 ${r + 1} 列第 ${c + 1} 欄`);
       if (value === null) div.classList.add('empty');
       else {
-        div.style.background = COLORS[value];
+        const type = blockType(value);
+        div.style.background = type.color;
+        div.dataset.type = type.stat;
+        div.innerHTML = `<span class="cell-icon" aria-hidden="true">${type.icon}</span>`;
+        div.title = type.name;
         div.addEventListener('click', () => handleCellClick(pos));
       }
       if (state.selected && state.selected.r === r && state.selected.c === c) div.classList.add('selected');
@@ -52,11 +76,26 @@
     $('moves').textContent = state.moves;
     $('target').textContent = state.target;
     $('combo').textContent = `x${state.combo}`;
-    $('hintButton').disabled = state.busy || state.battleEnded;
+    $('playerHp').textContent = `${state.playerHp}/${state.maxHp}`;
+    $('enemyHp').textContent = `${state.enemyHp}/${state.maxHp}`;
+    $('playerAttackCountdown').textContent = formatCountdown(state.nextPlayerAttackAt);
+    $('enemyAttackCountdown').textContent = formatCountdown(state.nextEnemyAttackAt);
+    $('roundAttack').textContent = state.roundStats.attack;
+    $('roundDefense').textContent = state.roundStats.defense;
+    $('roundSpell').textContent = state.roundStats.spell;
+    $('roundHeal').textContent = state.roundStats.heal;
+    $('battleLog').textContent = state.lastAction;
+    $('heroSprite').classList.toggle('attacking', state.heroAction);
+    $('enemySprite').classList.toggle('attacking', state.enemyAction);
+    $('hintButton').disabled = state.busy || state.ended;
     $('resetButton').disabled = state.busy;
     renderBattleStats();
   }
 
+  function formatCountdown(target) {
+    if (!target || state.ended) return '--';
+    return `${Math.max(0, Math.ceil((target - Date.now()) / 1000))}s`;
+  }
   function setStatus(text) { $('status').textContent = text; }
   function setBar(id, value, max = 100) {
     $(id).style.width = `${clamp(value, 0, max) / max * 100}%`;
@@ -89,87 +128,27 @@
     if (!state.startedAt) { $('timer').textContent = '00:00'; return; }
     const sec = Math.floor((Date.now() - state.startedAt) / 1000);
     $('timer').textContent = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
-  }
-  function startTimer() {
-    if (state.startedAt) return;
-    state.startedAt = Date.now();
-    state.timerId = setInterval(updateTimer, 1000);
-    startBattleTimers();
-  }
-
-  function startBattleTimers() {
-    clearInterval(state.attackTimerId);
-    state.nextAttackAt = Date.now() + state.attackInterval;
-    updateAttackTimer();
-    state.attackTimerId = setInterval(updateAttackTimer, 100);
-  }
-
-  function updateAttackTimer() {
-    if (!state.nextAttackAt) {
-      $('attackTimer').textContent = `${(state.attackInterval / 1000).toFixed(1)}s`;
-      renderBattleStats();
-      return;
-    }
-    const remaining = Math.max(0, state.nextAttackAt - Date.now());
-    $('attackTimer').textContent = `${(remaining / 1000).toFixed(1)}s`;
-    renderBattleStats();
-    if (remaining <= 0) resolvePlayerAttack();
-  }
-
-  function resolvePlayerAttack() {
-    if (state.battleEnded) return;
-
-    const attack = clamp(state.pendingAttack, 0, 100);
-    const defense = clamp(state.pendingDefense, 0, 100);
-    const heal = state.pendingHeal;
-    const multiplier = state.magicArmed ? 2 : 1;
-    const playerDamage = attack * multiplier;
-    const enemyBaseDamage = 10;
-    const enemyDamage = clamp(enemyBaseDamage - Math.floor(defense / 10), 0, enemyBaseDamage);
-
-    state.enemyHp = clamp(state.enemyHp - playerDamage, 0, state.maxHp);
-    state.playerHp = clamp(state.playerHp + heal - enemyDamage, 0, state.maxHp);
-    state.score += playerDamage * 10;
-
-    const magicText = state.magicArmed ? '，魔法加成已觸發（攻擊 x2）' : '';
-    setStatus(`回合結算：你造成 ${playerDamage} 傷害${magicText}，敵人造成 ${enemyDamage} 傷害。`);
-
-    state.pendingAttack = 0;
-    state.pendingDefense = 0;
-    state.pendingHeal = 0;
-    state.magicArmed = false;
-
-    if (state.enemyHp <= 0 || state.playerHp <= 0) {
-      endBattle(state.enemyHp <= 0 ? '恭喜勝利！敵方生命值歸 0。' : '挑戰失敗！玩家生命值歸 0。');
-      render();
-      return;
-    }
-
-    state.nextAttackAt = Date.now() + state.attackInterval;
     render();
   }
-
-  function endBattle(message) {
-    state.battleEnded = true;
-    clearInterval(state.attackTimerId);
-    state.attackTimerId = null;
-    state.nextAttackAt = null;
-    $('attackTimer').textContent = '停止';
-    setStatus(message);
+  function startTimers() {
+    if (state.startedAt || state.ended) return;
+    state.startedAt = Date.now();
+    state.nextPlayerAttackAt = Date.now() + sleepMsFromSeconds(state.attackInterval);
+    state.nextEnemyAttackAt = Date.now() + sleepMsFromSeconds(state.enemyInterval);
+    state.timerId = setInterval(updateTimer, 1000);
+    state.attackTimerId = setInterval(playerAttack, sleepMsFromSeconds(state.attackInterval));
+    state.enemyTimerId = setInterval(enemyAttack, sleepMsFromSeconds(state.enemyInterval));
+  }
+  function stopTimers() {
+    clearInterval(state.timerId); clearInterval(state.attackTimerId); clearInterval(state.enemyTimerId);
   }
 
-  function useMagic() {
-    if (state.battleEnded || state.magicArmed || state.pendingMagic < 50) return;
-    state.pendingMagic -= 50;
-    state.magicArmed = true;
-    setStatus('已使用魔法：下次攻擊傷害 x2。');
-    renderBattleStats();
-  }
+  function resetRoundStats() { state.roundStats = { attack: 0, defense: 0, spell: 0, heal: 0 }; }
 
   function resetGame() {
-    clearInterval(state.timerId);
-    clearInterval(state.attackTimerId);
-    Object.assign(state, { size: Number($('boardSize').value), colorCount: Number($('colorCount').value), fallSpeed: Number($('fallSpeed').value), clearSpeed: Number($('clearSpeed').value), attackInterval: Number($('attackInterval').value), attackTimerId: null, nextAttackAt: null, pendingAttack: 0, pendingDefense: 0, pendingMagic: 0, pendingHeal: 0, playerHp: 100, enemyHp: 100, maxHp: 100, magicArmed: false, battleEnded: false, selected: null, busy: false, score: 0, moves: 30, target: Number($('boardSize').value) * 150, combo: 1, startedAt: null, timerId: null, hint: [] });
+    stopTimers();
+    Object.assign(state, { size: Number($('boardSize').value), colorCount: Number($('colorCount').value), fallSpeed: Number($('fallSpeed').value), clearSpeed: Number($('clearSpeed').value), attackInterval: Number($('attackInterval').value), enemyInterval: Number($('enemyInterval').value), selected: null, busy: false, score: 0, moves: 30, target: Number($('boardSize').value) * 150, combo: 1, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: DEFAULT_HP, enemyHp: DEFAULT_HP, maxHp: DEFAULT_HP, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false });
+    resetRoundStats();
     state.board = logic.createBoard(state.size, state.colorCount);
     updateTimer();
     updateAttackTimer();
@@ -178,12 +157,12 @@
   }
 
   async function handleCellClick(pos) {
-    if (state.busy || state.moves <= 0 || state.battleEnded) return;
+    if (state.busy || state.moves <= 0 || state.ended) return;
     state.hint = [];
     if (!state.selected) { state.selected = pos; render(); return; }
     if (!logic.areAdjacent(state.selected, pos)) { state.selected = pos; render(); return; }
 
-    startTimer();
+    startTimers();
     state.busy = true;
     const previous = state.board;
     state.board = logic.swap(state.board, state.selected, pos);
@@ -210,7 +189,11 @@
   async function resolveMatches() {
     let matches = logic.findMatches(state.board);
     while (matches.length > 0) {
-      setStatus(`消除 ${matches.length} 個方塊！`);
+      setStatus(`消除 ${matches.length} 個方塊，效果已累積到本輪計時器。`);
+      matches.forEach(({ r, c }) => {
+        const type = blockType(state.board[r][c]);
+        state.roundStats[type.stat] += 1;
+      });
       state.score += matches.length * 20 * state.combo;
       matches.forEach(({ r, c }) => accumulateBlockEffect(state.board[r][c]));
       render({ clearing: matches });
@@ -225,28 +208,60 @@
     }
   }
 
-  function accumulateBlockEffect(value) {
-    if (value === 0) state.pendingAttack = clamp(state.pendingAttack + 10, 0, 100);
-    else if (value === 1) state.pendingDefense = clamp(state.pendingDefense + 10, 0, 100);
-    else if (value === 2) state.pendingMagic = clamp(state.pendingMagic + 10, 0, 100);
-    else if (value === 3) state.pendingHeal = clamp(state.pendingHeal + 5, 0, 100);
-    else state.pendingAttack = clamp(state.pendingAttack + 10, 0, 100);
+  function flashActor(actor) {
+    if (actor === 'hero') state.heroAction = true;
+    else state.enemyAction = true;
+    render();
+    setTimeout(() => { if (actor === 'hero') state.heroAction = false; else state.enemyAction = false; render(); }, 550);
+  }
+
+  function playerAttack() {
+    if (state.ended) return;
+    const damage = state.roundStats.attack + (state.roundStats.spell * 2);
+    const heal = state.roundStats.heal;
+    state.enemyHp = clamp(state.enemyHp - damage, 0, state.maxHp);
+    state.playerHp = clamp(state.playerHp + heal, 0, state.maxHp);
+    state.lastAction = `我方攻擊造成 ${damage} 傷害，回血 ${heal}。防禦會保留到敵方攻擊結算。`;
+    state.roundStats.attack = 0;
+    state.roundStats.spell = 0;
+    state.roundStats.heal = 0;
+    state.nextPlayerAttackAt = Date.now() + sleepMsFromSeconds(state.attackInterval);
+    flashActor('hero');
+    checkBattleEnd();
+  }
+
+  function enemyAttack() {
+    if (state.ended) return;
+    const blocked = Math.min(ENEMY_ATTACK, state.roundStats.defense);
+    const damage = ENEMY_ATTACK - blocked;
+    state.playerHp = clamp(state.playerHp - damage, 0, state.maxHp);
+    state.lastAction = `敵方攻擊 ${ENEMY_ATTACK}，防禦方塊抵擋 ${blocked}，我方受到 ${damage} 傷害。`;
+    resetRoundStats();
+    state.nextEnemyAttackAt = Date.now() + sleepMsFromSeconds(state.enemyInterval);
+    flashActor('enemy');
+    checkBattleEnd();
+  }
+
+  function checkBattleEnd() {
+    if (state.enemyHp <= 0) { state.ended = true; stopTimers(); setStatus('勝利！敵方血量歸零。'); }
+    if (state.playerHp <= 0) { state.ended = true; stopTimers(); setStatus('失敗！我方血量歸零。'); }
+    render();
   }
 
   function endTurnCheck() {
-    if (state.battleEnded) return;
-    if (state.score >= state.target) { setStatus('恭喜過關！你達成目標分數了。'); return; }
+    if (state.ended) return;
+    if (state.score >= state.target) { setStatus('恭喜達成目標分數，也可以繼續打倒敵人。'); return; }
     if (state.moves <= 0) { setStatus('步數用完，請重設再挑戰一次。'); return; }
     if (!logic.findAvailableMove(state.board)) {
       state.board = logic.shuffleBoard(state.board);
       setStatus('棋盤沒有可走步了，已自動重排。');
     } else {
-      setStatus('請繼續交換相鄰方塊。');
+      setStatus('請繼續交換相鄰方塊並累積攻擊、防禦、法術與回血。');
     }
   }
 
   function showHint() {
-    if (state.busy || state.battleEnded) return;
+    if (state.busy || state.ended) return;
     const move = logic.findAvailableMove(state.board);
     state.hint = move || [];
     setStatus(move ? '已標出一組可交換的方塊。' : '目前無解，已重新排列棋盤。');
@@ -257,11 +272,8 @@
   ['colorCount', 'boardSize'].forEach(id => $(id).addEventListener('change', resetGame));
   $('fallSpeed').addEventListener('change', e => { state.fallSpeed = Number(e.target.value); render(); });
   $('clearSpeed').addEventListener('change', e => { state.clearSpeed = Number(e.target.value); render(); });
-  $('attackInterval').addEventListener('change', e => {
-    state.attackInterval = Number(e.target.value);
-    if (state.nextAttackAt) startBattleTimers();
-    else updateAttackTimer();
-  });
+  $('attackInterval').addEventListener('change', resetGame);
+  $('enemyInterval').addEventListener('change', resetGame);
   $('resetButton').addEventListener('click', resetGame);
   $('hintButton').addEventListener('click', showHint);
   $('magicButton').addEventListener('click', useMagic);
