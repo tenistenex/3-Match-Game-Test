@@ -3,7 +3,7 @@
     function showDamagePopup(target, amount, kind = 'damage') {
       const id = `${Date.now()}-${Math.random()}`;
       const prefix = kind === 'heal' ? '+' : '-';
-      state.damagePopups = [{ id, target, kind, text: `${prefix}${formatNumber(amount)}` }];
+      state.damagePopups = [...state.damagePopups, { id, target, kind, text: `${prefix}${formatNumber(amount)}` }];
       render();
       setTimeout(() => {
         state.damagePopups = state.damagePopups.filter(popup => popup.id !== id);
@@ -29,10 +29,13 @@
       const baseDamage = (state.roundStats.attack * state.attackMultiplier) + (state.roundStats.spell * 2);
       const damage = state.magicArmed ? baseDamage * 2 : baseDamage;
       const heal = state.roundStats.heal;
+      const playerHpBeforeHeal = state.playerHp;
       state.enemyHp = clamp(state.enemyHp - damage, 0, state.enemyMaxHp);
       state.playerHp = clamp(state.playerHp + heal, 0, state.playerMaxHp);
-      showDamagePopup('enemy', damage);
-      state.lastAction = `我方攻擊造成 ${formatNumber(damage)} 傷害${state.magicArmed ? '（魔法 x2）' : ''}，回血 ${formatNumber(heal)}。防禦會保留到敵方攻擊結算。`;
+      const actualHeal = state.playerHp - playerHpBeforeHeal;
+      if (damage > 0) showDamagePopup('enemy', damage);
+      if (actualHeal > 0) showDamagePopup('hero', actualHeal, 'heal');
+      state.lastAction = `我方攻擊造成 ${formatNumber(damage)} 傷害${state.magicArmed ? '（魔法 x2）' : ''}，回血 ${formatNumber(actualHeal)}。防禦會保留到敵方攻擊結算。`;
       state.roundStats.attack = 0;
       state.roundStats.spell = 0;
       state.roundStats.heal = 0;
@@ -47,7 +50,7 @@
       const blocked = Math.min(state.enemyAttackPower, state.roundStats.defense * state.defenseMultiplier);
       const damage = state.enemyAttackPower - blocked;
       state.playerHp = clamp(state.playerHp - damage, 0, state.playerMaxHp);
-      showDamagePopup('hero', damage);
+      if (damage > 0) showDamagePopup('hero', damage);
       state.lastAction = `敵方攻擊 ${formatNumber(state.enemyAttackPower)}，防禦方塊抵擋 ${formatNumber(blocked)}，我方受到 ${formatNumber(damage)} 傷害。`;
       resetRoundStats(state);
       state.nextEnemyAttackAt = Date.now() + sleepMsFromSeconds(state.enemyInterval);

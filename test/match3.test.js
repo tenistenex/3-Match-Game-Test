@@ -148,11 +148,17 @@ function assertBoardPanelRendered(elements, expectedSize, message) {
   const special = logic.createSpecialBlock(2, logic.SPECIAL_TYPES.BOMB);
   assert.equal(logic.colorOf(special), 2, 'special blocks should keep their original color');
 
+  assert.equal(
+    JSON.stringify(context.window.Match3Config.BLOCK_TYPES.slice(0, 4).map(type => type.weight)),
+    JSON.stringify([35, 35, 20, 10]),
+    'default block weights should match the requested spawn percentages'
+  );
+
   context.window.Match3Config.BLOCK_TYPES[0].weight = 0;
   context.window.Match3Config.BLOCK_TYPES[1].weight = 10;
   assert.equal(logic.createRandomBlock(2), 1, 'block spawn weights should control random block generation');
-  context.window.Match3Config.BLOCK_TYPES[0].weight = 1;
-  context.window.Match3Config.BLOCK_TYPES[1].weight = 1;
+  context.window.Match3Config.BLOCK_TYPES[0].weight = 35;
+  context.window.Match3Config.BLOCK_TYPES[1].weight = 35;
 
   elements.resetButton.click();
   context.window.Match3Config.BLOCK_TYPES[0].clearSpeed = 17;
@@ -180,10 +186,16 @@ function assertBoardPanelRendered(elements, expectedSize, message) {
 
   elements.resetButton.click();
   context.window.Match3Game.state.roundStats.attack = 7;
+  context.window.Match3Game.state.roundStats.heal = 5;
   context.window.Match3Game.state.attackMultiplier = 2;
+  context.window.Match3Game.state.playerHp = 110;
   context.window.Match3Game.playerAttack();
   assert.equal(context.window.Match3Game.state.enemyHp, 136, 'player attack should apply the actual calculated damage');
+  assert.equal(context.window.Match3Game.state.playerHp, 115, 'player attack should apply accumulated healing to the hero');
+  assert.equal(context.window.Match3Game.state.damagePopups[0].target, 'enemy', 'player attack damage popup should appear over the enemy');
   assert.equal(context.window.Match3Game.state.damagePopups[0].text, '-14', 'player attack should create a damage number popup');
+  assert.equal(context.window.Match3Game.state.damagePopups[1].target, 'hero', 'healing popup should appear over the hero');
+  assert.equal(context.window.Match3Game.state.damagePopups[1].text, '+5', 'player attack should create a heal number popup');
 
   elements.resetButton.click();
   assertBoardPanelRendered(elements, 8, 'reset');
