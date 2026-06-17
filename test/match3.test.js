@@ -1,0 +1,122 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+
+class ClassList {
+  constructor() { this.values = new Set(); }
+  add(...names) { names.forEach(name => this.values.add(name)); }
+  remove(...names) { names.forEach(name => this.values.delete(name)); }
+  toggle(name, force) {
+    if (force === undefined ? !this.values.has(name) : force) this.values.add(name);
+    else this.values.delete(name);
+  }
+  contains(name) { return this.values.has(name); }
+}
+
+function createElement(id = 'created') {
+  const element = {
+    id,
+    style: { setProperty(name, value) { this[name] = value; } },
+    dataset: {},
+    classList: new ClassList(),
+    listeners: {},
+    children: [],
+    attributes: {},
+    disabled: false,
+    value: '',
+    textContent: '',
+    title: '',
+    type: '',
+    set innerHTML(value) { this._innerHTML = value; if (id === 'board') this.children = []; },
+    get innerHTML() { return this._innerHTML || ''; },
+    setAttribute(name, value) { this.attributes[name] = value; },
+    appendChild(child) { this.children.push(child); return child; },
+    addEventListener(type, handler) { this.listeners[type] = handler; },
+    click() { if (this.listeners.click) return this.listeners.click({ target: this }); },
+  };
+  return element;
+}
+
+function createHarness() {
+  const ids = [
+    'board', 'score', 'moves', 'target', 'combo', 'playerHp', 'enemyHp', 'playerAttackCountdown',
+    'enemyAttackCountdown', 'roundAttack', 'roundDefense', 'roundSpell', 'roundHeal', 'battleLog',
+    'heroSprite', 'enemySprite', 'hintButton', 'resetButton', 'playerHpText', 'enemyHpText',
+    'playerHpBar', 'enemyHpBar', 'playerAttackBar', 'enemyAttackBar', 'attackValue', 'defenseValue',
+    'magicValue', 'attackMeter', 'defenseMeter', 'magicMeter', 'magicButton', 'timer', 'status',
+    'boardSize', 'colorCount', 'fallSpeed', 'clearSpeed', 'attackInterval', 'enemyInterval', 'attackTimer'
+  ];
+  const elements = Object.fromEntries(ids.map(id => [id, createElement(id)]));
+  Object.assign(elements.boardSize, { value: '8' });
+  Object.assign(elements.colorCount, { value: '4' });
+  Object.assign(elements.fallSpeed, { value: '1' });
+  Object.assign(elements.clearSpeed, { value: '1' });
+  Object.assign(elements.attackInterval, { value: '30' });
+  Object.assign(elements.enemyInterval, { value: '30' });
+
+  const context = {
+    window: {},
+    document: {
+      documentElement: createElement('root'),
+      getElementById(id) {
+        assert.ok(elements[id], `missing fixture element #${id}`);
+        return elements[id];
+      },
+      createElement() { return createElement(); },
+    },
+    getComputedStyle() {
+      return { getPropertyValue(prop) { return prop === '--cell-size' ? '44' : '6'; } };
+    },
+    setInterval,
+    clearInterval,
+    setTimeout,
+    Math,
+    Date,
+    console,
+  };
+  context.window = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync('assets/match3.logic.js', 'utf8'), context);
+  vm.runInContext(fs.readFileSync('assets/match3.ui.js', 'utf8'), context);
+  return { context, elements };
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+(async () => {
+  const { context, elements } = createHarness();
+
+  assert.equal(elements.board.children.length, 64, 'initial board should render 8x8 cells');
+  assert.equal(elements.status.textContent, '請交換相鄰方塊開始遊戲。');
+  assert.equal(elements.moves.textContent, 30);
+
+  elements.hintButton.click();
+  assert.equal(elements.board.children.filter(cell => cell.classList.contains('hint')).length, 2, 'hint should mark one swappable pair');
+  assert.match(elements.status.textContent, /標出一組可交換/);
+
+  const colorValues = new Map(['#FF6663', '#60A5FA', '#A78BFA', '#34D399'].map((color, index) => [color, index]));
+  const currentBoard = () => Array.from({ length: 8 }, (_, r) =>
+    Array.from({ length: 8 }, (_, c) => colorValues.get(elements.board.children[r * 8 + c].style.background))
+  );
+  const move = context.window.Match3Logic.findAvailableMove(currentBoard());
+  assert.ok(move, 'board should have an available move');
+  const [first, second] = move;
+  elements.board.children[first.r * 8 + first.c].click();
+  elements.board.children[second.r * 8 + second.c].click();
+  await wait(100);
+
+  assert.equal(elements.moves.textContent, 29, 'valid swap should consume one move');
+  assert.equal(elements.board.children.length, 64, 'board should still have 64 cells after resolving a move');
+  assert.doesNotThrow(() => context.window.Match3Logic.findAvailableMove(currentBoard()));
+
+  elements.resetButton.click();
+  assert.equal(elements.board.children.length, 64, 'reset should immediately render the board');
+  assert.equal(elements.moves.textContent, 30, 'reset should restore moves');
+
+  console.log('match3 basic UI tests passed');
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

@@ -19,7 +19,7 @@
     hint: [], playerHp: DEFAULT_HP, enemyHp: DEFAULT_HP, maxHp: DEFAULT_HP,
     attackInterval: 5, enemyInterval: 5, nextPlayerAttackAt: null, nextEnemyAttackAt: null,
     roundStats: { attack: 0, defense: 0, spell: 0, heal: 0 },
-    lastAction: '尚未攻擊。', heroAction: false, enemyAction: false, ended: false
+    lastAction: '尚未攻擊。', heroAction: false, enemyAction: false, ended: false, magicArmed: false
   };
 
   function key(pos) { return `${pos.r},${pos.c}`; }
@@ -101,27 +101,46 @@
     $(id).style.width = `${clamp(value, 0, max) / max * 100}%`;
   }
 
-  function renderBattleStats() {
-    const attack = clamp(state.pendingAttack, 0, 100);
-    const defense = clamp(state.pendingDefense, 0, 100);
-    const magic = clamp(state.pendingMagic, 0, 100);
-    const remaining = state.nextAttackAt ? clamp(state.nextAttackAt - Date.now(), 0, state.attackInterval) : state.attackInterval;
-    const countdownPercent = state.attackInterval ? (state.attackInterval - remaining) / state.attackInterval * 100 : 0;
+  function countdownProgress(target, intervalSeconds) {
+    if (!target || state.ended) return 0;
+    const total = sleepMsFromSeconds(intervalSeconds);
+    const remaining = clamp(target - Date.now(), 0, total);
+    return total ? (total - remaining) / total * 100 : 0;
+  }
 
+  function renderBattleStats() {
+    const attack = clamp(state.roundStats.attack * 10, 0, 100);
+    const defense = clamp(state.roundStats.defense * 10, 0, 100);
+    const magic = clamp(state.roundStats.spell * 10, 0, 100);
+
+    $('attackTimer').textContent = formatCountdown(state.nextPlayerAttackAt) === '--' ? `${state.attackInterval}.0s` : formatCountdown(state.nextPlayerAttackAt);
     $('playerHpText').textContent = `${state.playerHp} / ${state.maxHp}`;
     $('enemyHpText').textContent = `${state.enemyHp} / ${state.maxHp}`;
     setBar('playerHpBar', state.playerHp, state.maxHp);
     setBar('enemyHpBar', state.enemyHp, state.maxHp);
-    setBar('playerAttackBar', countdownPercent);
-    setBar('enemyAttackBar', countdownPercent);
+    setBar('playerAttackBar', countdownProgress(state.nextPlayerAttackAt, state.attackInterval));
+    setBar('enemyAttackBar', countdownProgress(state.nextEnemyAttackAt, state.enemyInterval));
     $('attackValue').textContent = `${attack} / 100`;
     $('defenseValue').textContent = `${defense} / 100`;
     $('magicValue').textContent = `${magic} / 100`;
     setBar('attackMeter', attack);
     setBar('defenseMeter', defense);
     setBar('magicMeter', magic);
-    $('magicButton').disabled = state.battleEnded || state.magicArmed || state.pendingMagic < 50;
-    $('magicButton').textContent = state.magicArmed ? '魔法已準備：下次攻擊 x2' : '使用魔法（下次攻擊 x2）';
+    $('magicButton').disabled = state.ended || state.magicArmed || state.roundStats.spell < 5;
+    $('magicButton').textContent = state.magicArmed ? '魔法已準備：下次攻擊 x2' : '使用魔法（消耗 5 法術，下次攻擊 x2）';
+  }
+
+  function updateAttackTimer() {
+    renderBattleStats();
+  }
+
+  function useMagic() {
+    if (state.ended || state.magicArmed || state.roundStats.spell < 5) return;
+    state.roundStats.spell -= 5;
+    state.magicArmed = true;
+    state.lastAction = '已使用魔法：下次我方攻擊傷害 x2。';
+    setStatus('已使用魔法：下次我方攻擊傷害 x2。');
+    render();
   }
 
   function updateTimer() {
@@ -147,7 +166,7 @@
 
   function resetGame() {
     stopTimers();
-    Object.assign(state, { size: Number($('boardSize').value), colorCount: Number($('colorCount').value), fallSpeed: Number($('fallSpeed').value), clearSpeed: Number($('clearSpeed').value), attackInterval: Number($('attackInterval').value), enemyInterval: Number($('enemyInterval').value), selected: null, busy: false, score: 0, moves: 30, target: Number($('boardSize').value) * 150, combo: 1, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: DEFAULT_HP, enemyHp: DEFAULT_HP, maxHp: DEFAULT_HP, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false });
+    Object.assign(state, { size: Number($('boardSize').value), colorCount: Number($('colorCount').value), fallSpeed: Number($('fallSpeed').value), clearSpeed: Number($('clearSpeed').value), attackInterval: Number($('attackInterval').value), enemyInterval: Number($('enemyInterval').value), selected: null, busy: false, score: 0, moves: 30, target: Number($('boardSize').value) * 150, combo: 1, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: DEFAULT_HP, enemyHp: DEFAULT_HP, maxHp: DEFAULT_HP, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
     resetRoundStats();
     state.board = logic.createBoard(state.size, state.colorCount);
     updateTimer();
@@ -195,7 +214,6 @@
         state.roundStats[type.stat] += 1;
       });
       state.score += matches.length * 20 * state.combo;
-      matches.forEach(({ r, c }) => accumulateBlockEffect(state.board[r][c]));
       render({ clearing: matches });
       await sleep(state.clearSpeed);
       matches.forEach(({ r, c }) => { state.board[r][c] = null; });
@@ -217,14 +235,16 @@
 
   function playerAttack() {
     if (state.ended) return;
-    const damage = state.roundStats.attack + (state.roundStats.spell * 2);
+    const baseDamage = state.roundStats.attack + (state.roundStats.spell * 2);
+    const damage = state.magicArmed ? baseDamage * 2 : baseDamage;
     const heal = state.roundStats.heal;
     state.enemyHp = clamp(state.enemyHp - damage, 0, state.maxHp);
     state.playerHp = clamp(state.playerHp + heal, 0, state.maxHp);
-    state.lastAction = `我方攻擊造成 ${damage} 傷害，回血 ${heal}。防禦會保留到敵方攻擊結算。`;
+    state.lastAction = `我方攻擊造成 ${damage} 傷害${state.magicArmed ? '（魔法 x2）' : ''}，回血 ${heal}。防禦會保留到敵方攻擊結算。`;
     state.roundStats.attack = 0;
     state.roundStats.spell = 0;
     state.roundStats.heal = 0;
+    state.magicArmed = false;
     state.nextPlayerAttackAt = Date.now() + sleepMsFromSeconds(state.attackInterval);
     flashActor('hero');
     checkBattleEnd();
