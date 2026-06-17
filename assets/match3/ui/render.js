@@ -57,8 +57,7 @@
         else {
           const isSpecial = window.Match3Logic && window.Match3Logic.isSpecialBlock(value);
           const special = isSpecial ? value.special : null;
-          const rawColor = isSpecial ? value.color : value;
-          const type = blockType(Number.isFinite(rawColor) ? rawColor : 0);
+          const type = blockType(isSpecial ? value.color : value);
           div.style.background = type.color;
           div.dataset.type = type.stat;
           if (isSpecial) {
