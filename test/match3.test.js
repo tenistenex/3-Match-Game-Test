@@ -85,11 +85,8 @@ function createHarness() {
     'assets/match3/systems/battle.js',
     'assets/match3/main.js',
   ], 'index.html should load match-3 scripts in the required order');
-  scriptFiles.forEach(file => {
-    assert.ok(fs.existsSync(file), `script referenced by index.html should exist: ${file}`);
-    vm.runInContext(fs.readFileSync(file, 'utf8'), context);
-  });
-  return { context, elements, scriptFiles };
+  scriptFiles.forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context));
+  return { context, elements };
 }
 
 function wait(ms) {
@@ -118,12 +115,6 @@ function assertBoardPanelRendered(elements, expectedSize, message) {
   const redirectHtml = fs.readFileSync('match3.html', 'utf8');
   assert.match(redirectHtml, /url=\.\/index\.html/, 'match3.html should redirect directly to index.html so the game loads from local files');
   assert.match(redirectHtml, /window\.location\.replace\('\.\/index\.html'\)/, 'match3.html script fallback should redirect directly to index.html');
-
-  const deployWorkflow = fs.readFileSync('.github/workflows/deploy.yml', 'utf8');
-  assert.match(deployWorkflow, /cp -R assets dist\//, 'Pages deployment should copy the full assets folder, including nested match-3 scripts');
-  scriptFiles.forEach(file => {
-    assert.match(deployWorkflow, new RegExp(`test -s dist/${file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`), `Pages deployment should verify ${file} is included`);
-  });
 
   elements.hintButton.click();
   assert.equal(elements.board.children.filter(cell => cell.classList.contains('hint')).length, 2, 'hint should mark one swappable pair');

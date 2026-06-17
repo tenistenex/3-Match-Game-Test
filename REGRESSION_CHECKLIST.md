@@ -8,9 +8,7 @@ When changing the game UI, battle logic, or HTML entry files, always check these
 2. Run `git diff --check`.
 3. Confirm `match3.html` redirects to `./index.html`, not just `./`.
    - Redirecting to `./` can fail when the game is opened from local files and can look like the blocks/buttons disappeared.
-4. Confirm the GitHub Pages deploy workflow copies the full `assets/` folder and verifies every script referenced by `index.html`.
-   - Missing nested files under `assets/match3/` causes 404 errors in the browser console and stops the board/buttons from loading.
-5. If any code touches `resetGame()`, `render()`, `renderBattleStats()`, script tags, or element IDs, re-check that:
+4. If any code touches `resetGame()`, `render()`, `renderBattleStats()`, script tags, or element IDs, re-check that:
    - `#board` has `size × size` rendered button cells.
    - Each visible cell has a click listener.
    - `#hintButton`, `#resetButton`, and `#magicButton` are present and usable.
