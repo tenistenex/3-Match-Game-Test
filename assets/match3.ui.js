@@ -11,12 +11,13 @@
   const logic = window.Match3Logic;
   const $ = id => document.getElementById(id);
   const DEFAULT_HP = 100;
-  const ENEMY_ATTACK = 10;
+  const DEFAULT_ENEMY_ATTACK = 10;
   const state = {
     board: [], size: 8, colorCount: 4, fallSpeed: 420, clearSpeed: 260,
     selected: null, busy: false, score: 0, moves: 30, target: 1200, combo: 1,
     startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null,
-    hint: [], playerHp: DEFAULT_HP, enemyHp: DEFAULT_HP, maxHp: DEFAULT_HP,
+    hint: [], playerHp: DEFAULT_HP, enemyHp: DEFAULT_HP, playerMaxHp: DEFAULT_HP, enemyMaxHp: DEFAULT_HP,
+    attackMultiplier: 1, defenseMultiplier: 1, enemyAttackPower: DEFAULT_ENEMY_ATTACK,
     attackInterval: 5, enemyInterval: 5, nextPlayerAttackAt: null, nextEnemyAttackAt: null,
     roundStats: { attack: 0, defense: 0, spell: 0, heal: 0 },
     lastAction: '尚未攻擊。', heroAction: false, enemyAction: false, ended: false, magicArmed: false
@@ -76,8 +77,8 @@
     $('moves').textContent = state.moves;
     $('target').textContent = state.target;
     $('combo').textContent = `x${state.combo}`;
-    $('playerHp').textContent = `${state.playerHp}/${state.maxHp}`;
-    $('enemyHp').textContent = `${state.enemyHp}/${state.maxHp}`;
+    $('playerHp').textContent = `${formatNumber(state.playerHp)}/${formatNumber(state.playerMaxHp)}`;
+    $('enemyHp').textContent = `${formatNumber(state.enemyHp)}/${formatNumber(state.enemyMaxHp)}`;
     $('playerAttackCountdown').textContent = formatCountdown(state.nextPlayerAttackAt);
     $('enemyAttackCountdown').textContent = formatCountdown(state.nextEnemyAttackAt);
     $('roundAttack').textContent = state.roundStats.attack;
@@ -97,6 +98,7 @@
     return `${Math.max(0, Math.ceil((target - Date.now()) / 1000))}s`;
   }
   function setStatus(text) { $('status').textContent = text; }
+  function formatNumber(value) { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
   function setBar(id, value, max = 100) {
     $(id).style.width = `${clamp(value, 0, max) / max * 100}%`;
   }
@@ -109,22 +111,24 @@
   }
 
   function renderBattleStats() {
-    const attack = clamp(state.roundStats.attack * 10, 0, 100);
-    const defense = clamp(state.roundStats.defense * 10, 0, 100);
-    const magic = clamp(state.roundStats.spell * 10, 0, 100);
+    const attack = state.roundStats.attack * state.attackMultiplier;
+    const defense = state.roundStats.defense * state.defenseMultiplier;
+    const magic = state.roundStats.spell * 10;
+    const attackMeterMax = Math.max(100, state.enemyMaxHp);
+    const defenseMeterMax = Math.max(100, state.enemyAttackPower);
 
     $('attackTimer').textContent = formatCountdown(state.nextPlayerAttackAt) === '--' ? `${state.attackInterval}.0s` : formatCountdown(state.nextPlayerAttackAt);
-    $('playerHpText').textContent = `${state.playerHp} / ${state.maxHp}`;
-    $('enemyHpText').textContent = `${state.enemyHp} / ${state.maxHp}`;
-    setBar('playerHpBar', state.playerHp, state.maxHp);
-    setBar('enemyHpBar', state.enemyHp, state.maxHp);
+    $('playerHpText').textContent = `${formatNumber(state.playerHp)} / ${formatNumber(state.playerMaxHp)}`;
+    $('enemyHpText').textContent = `${formatNumber(state.enemyHp)} / ${formatNumber(state.enemyMaxHp)}`;
+    setBar('playerHpBar', state.playerHp, state.playerMaxHp);
+    setBar('enemyHpBar', state.enemyHp, state.enemyMaxHp);
     setBar('playerAttackBar', countdownProgress(state.nextPlayerAttackAt, state.attackInterval));
     setBar('enemyAttackBar', countdownProgress(state.nextEnemyAttackAt, state.enemyInterval));
-    $('attackValue').textContent = `${attack} / 100`;
-    $('defenseValue').textContent = `${defense} / 100`;
-    $('magicValue').textContent = `${magic} / 100`;
-    setBar('attackMeter', attack);
-    setBar('defenseMeter', defense);
+    $('attackValue').textContent = `${formatNumber(attack)} / ${formatNumber(attackMeterMax)}`;
+    $('defenseValue').textContent = `${formatNumber(defense)} / ${formatNumber(defenseMeterMax)}`;
+    $('magicValue').textContent = `${formatNumber(clamp(magic, 0, 100))} / 100`;
+    setBar('attackMeter', attack, attackMeterMax);
+    setBar('defenseMeter', defense, defenseMeterMax);
     setBar('magicMeter', magic);
     $('magicButton').disabled = state.ended || state.magicArmed || state.roundStats.spell < 5;
     $('magicButton').textContent = state.magicArmed ? '魔法已準備：下次攻擊 x2' : '使用魔法（消耗 5 法術，下次攻擊 x2）';
@@ -174,7 +178,9 @@
 
   function resetGame() {
     stopTimers();
-    Object.assign(state, { size: Number($('boardSize').value), colorCount: Number($('colorCount').value), fallSpeed: Number($('fallSpeed').value), clearSpeed: Number($('clearSpeed').value), attackInterval: Number($('attackInterval').value), enemyInterval: Number($('enemyInterval').value), selected: null, busy: false, score: 0, moves: 30, target: Number($('boardSize').value) * 150, combo: 1, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: DEFAULT_HP, enemyHp: DEFAULT_HP, maxHp: DEFAULT_HP, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
+    const playerMaxHp = Math.max(1, Number($('playerMaxHpInput').value));
+    const enemyMaxHp = Math.max(1, Number($('enemyMaxHpInput').value));
+    Object.assign(state, { size: Number($('boardSize').value), colorCount: Number($('colorCount').value), fallSpeed: Number($('fallSpeed').value), clearSpeed: Number($('clearSpeed').value), attackInterval: Number($('attackInterval').value), enemyInterval: Number($('enemyInterval').value), attackMultiplier: Math.max(0, Number($('attackMultiplier').value)), defenseMultiplier: Math.max(0, Number($('defenseMultiplier').value)), enemyAttackPower: Math.max(0, Number($('enemyAttackPower').value)), selected: null, busy: false, score: 0, moves: 30, target: Number($('boardSize').value) * 150, combo: 1, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
     resetRoundStats();
     state.board = logic.createBoard(state.size, state.colorCount);
     updateTimer();
@@ -226,7 +232,10 @@
       state.score += matches.length * 20 * state.combo;
       render({ clearing: matches });
       await sleep(state.clearSpeed);
-      matches.forEach(({ r, c }) => { state.board[r][c] = null; });
+      matches.forEach(({ r, c }) => {
+        accumulateBlockEffect(state.board[r][c]);
+        state.board[r][c] = null;
+      });
       const collapsed = logic.collapse(state.board, state.colorCount);
       state.board = collapsed.board;
       render({ fallMoves: collapsed.fallMoves, spawnMoves: collapsed.spawnMoves });
@@ -245,12 +254,12 @@
 
   function playerAttack() {
     if (state.ended) return;
-    const baseDamage = state.roundStats.attack + (state.roundStats.spell * 2);
+    const baseDamage = (state.roundStats.attack * state.attackMultiplier) + (state.roundStats.spell * 2);
     const damage = state.magicArmed ? baseDamage * 2 : baseDamage;
     const heal = state.roundStats.heal;
-    state.enemyHp = clamp(state.enemyHp - damage, 0, state.maxHp);
-    state.playerHp = clamp(state.playerHp + heal, 0, state.maxHp);
-    state.lastAction = `我方攻擊造成 ${damage} 傷害${state.magicArmed ? '（魔法 x2）' : ''}，回血 ${heal}。防禦會保留到敵方攻擊結算。`;
+    state.enemyHp = clamp(state.enemyHp - damage, 0, state.enemyMaxHp);
+    state.playerHp = clamp(state.playerHp + heal, 0, state.playerMaxHp);
+    state.lastAction = `我方攻擊造成 ${formatNumber(damage)} 傷害${state.magicArmed ? '（魔法 x2）' : ''}，回血 ${formatNumber(heal)}。防禦會保留到敵方攻擊結算。`;
     state.roundStats.attack = 0;
     state.roundStats.spell = 0;
     state.roundStats.heal = 0;
@@ -262,10 +271,10 @@
 
   function enemyAttack() {
     if (state.ended) return;
-    const blocked = Math.min(ENEMY_ATTACK, state.roundStats.defense);
-    const damage = ENEMY_ATTACK - blocked;
-    state.playerHp = clamp(state.playerHp - damage, 0, state.maxHp);
-    state.lastAction = `敵方攻擊 ${ENEMY_ATTACK}，防禦方塊抵擋 ${blocked}，我方受到 ${damage} 傷害。`;
+    const blocked = Math.min(state.enemyAttackPower, state.roundStats.defense * state.defenseMultiplier);
+    const damage = state.enemyAttackPower - blocked;
+    state.playerHp = clamp(state.playerHp - damage, 0, state.playerMaxHp);
+    state.lastAction = `敵方攻擊 ${formatNumber(state.enemyAttackPower)}，防禦方塊抵擋 ${formatNumber(blocked)}，我方受到 ${formatNumber(damage)} 傷害。`;
     resetRoundStats();
     state.nextEnemyAttackAt = Date.now() + sleepMsFromSeconds(state.enemyInterval);
     flashActor('enemy');
@@ -299,7 +308,7 @@
     render();
   }
 
-  ['colorCount', 'boardSize'].forEach(id => $(id).addEventListener('change', resetGame));
+  ['colorCount', 'boardSize', 'playerMaxHpInput', 'enemyMaxHpInput', 'attackMultiplier', 'defenseMultiplier', 'enemyAttackPower'].forEach(id => $(id).addEventListener('change', resetGame));
   $('fallSpeed').addEventListener('change', e => { state.fallSpeed = Number(e.target.value); render(); });
   $('clearSpeed').addEventListener('change', e => { state.clearSpeed = Number(e.target.value); render(); });
   $('attackInterval').addEventListener('change', resetGame);
