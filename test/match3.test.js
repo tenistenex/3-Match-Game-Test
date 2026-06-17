@@ -39,15 +39,8 @@ function createElement(id = 'created') {
 }
 
 function createHarness() {
-  const ids = [
-    'board', 'score', 'moves', 'target', 'combo', 'playerHp', 'enemyHp', 'playerAttackCountdown',
-    'enemyAttackCountdown', 'roundAttack', 'roundDefense', 'roundSpell', 'roundHeal', 'battleLog',
-    'heroSprite', 'enemySprite', 'hintButton', 'resetButton', 'playerHpText', 'enemyHpText',
-    'playerHpBar', 'enemyHpBar', 'playerAttackBar', 'enemyAttackBar', 'attackValue', 'defenseValue',
-    'magicValue', 'healValue', 'attackMeter', 'defenseMeter', 'magicMeter', 'healMeter', 'magicButton', 'timer', 'status',
-    'boardSize', 'colorCount', 'fallSpeed', 'clearSpeed', 'attackInterval', 'enemyInterval', 'attackTimer',
-    'playerMaxHpInput', 'enemyMaxHpInput', 'attackMultiplier', 'defenseMultiplier', 'enemyAttackPower', 'blockSettings'
-  ];
+  const indexHtml = fs.readFileSync('index.html', 'utf8');
+  const ids = Array.from(new Set([...indexHtml.matchAll(/\bid="([^"]+)"/g)].map(match => match[1])));
   const elements = Object.fromEntries(ids.map(id => [id, createElement(id)]));
   Object.assign(elements.boardSize, { value: '8' });
   Object.assign(elements.colorCount, { value: '4' });
@@ -83,14 +76,16 @@ function createHarness() {
   };
   context.window = context;
   vm.createContext(context);
-  [
+  const scriptFiles = [...indexHtml.matchAll(/<script src="\.\/([^"]+)"><\/script>/g)].map(match => match[1]);
+  assert.deepEqual(scriptFiles, [
     'assets/match3/config/block-types.js',
     'assets/match3/core/logic.js',
     'assets/match3/state/game-state.js',
     'assets/match3/ui/render.js',
     'assets/match3/systems/battle.js',
     'assets/match3/main.js',
-  ].forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context));
+  ], 'index.html should load match-3 scripts in the required order');
+  scriptFiles.forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context));
   return { context, elements };
 }
 
@@ -116,6 +111,10 @@ function assertBoardPanelRendered(elements, expectedSize, message) {
   assert.equal(context.window.Match3Game.showDebugOptions, false, 'debug option controls should be hidden by default');
   assert.equal(elements.blockSettings.children.length, 4, 'block settings panel should render one card per active block type');
   assert.doesNotMatch(fs.readFileSync('index.html', 'utf8'), /<details class="block-settings"[^>]*data-debug-option/, 'block settings panel should stay visible without debug options');
+
+  const redirectHtml = fs.readFileSync('match3.html', 'utf8');
+  assert.match(redirectHtml, /url=\.\/index\.html/, 'match3.html should redirect directly to index.html so the game loads from local files');
+  assert.match(redirectHtml, /window\.location\.replace\('\.\/index\.html'\)/, 'match3.html script fallback should redirect directly to index.html');
 
   elements.hintButton.click();
   assert.equal(elements.board.children.filter(cell => cell.classList.contains('hint')).length, 2, 'hint should mark one swappable pair');

@@ -157,3 +157,7 @@ Schema migrations: Drizzle Kit handles database schema changes
 Connection: Uses @neondatabase/serverless for optimized serverless connections
 Type safety: Schema definitions generate TypeScript types automatically
 The application is designed to be easily deployable to platforms like Vercel, Netlify, or Railway, with the database hosted on Neon's serverless PostgreSQL platform.
+
+Critical regression note
+- If you modify match-3 UI, HTML entry files, reset/render logic, battle stats, script tags, or element IDs, read `REGRESSION_CHECKLIST.md` and run its checks before finishing.
+- This is specifically to prevent regressions where blocks disappear or buttons stop responding.
