@@ -100,7 +100,7 @@ function assertBoardPanelRendered(elements, expectedSize, message) {
 }
 
 (async () => {
-  const { context, elements } = createHarness();
+  const { context, elements, scriptFiles } = createHarness();
 
   assertBoardPanelRendered(elements, 8, 'initial load');
   assert.equal(elements.status.textContent, '請交換相鄰方塊開始遊戲。');
