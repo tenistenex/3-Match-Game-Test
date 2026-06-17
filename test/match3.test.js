@@ -98,16 +98,24 @@ function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function assertBoardPanelRendered(elements, expectedSize, message) {
+  assert.equal(elements.board.children.length, expectedSize * expectedSize, `${message}: board should render ${expectedSize * expectedSize} cells`);
+  assert.equal(elements.board.children.filter(cell => !cell.classList.contains('empty')).length, expectedSize * expectedSize, `${message}: board cells should be visible blocks`);
+  assert.ok(elements.board.children.every(cell => cell.listeners.click), `${message}: every visible block should be clickable`);
+}
+
 (async () => {
   const { context, elements } = createHarness();
 
-  assert.equal(elements.board.children.length, 64, 'initial board should render 8x8 cells');
+  assertBoardPanelRendered(elements, 8, 'initial load');
   assert.equal(elements.status.textContent, '請交換相鄰方塊開始遊戲。');
   assert.equal(elements.playerHp.textContent, '120/120');
   assert.equal(elements.enemyHp.textContent, '150/150');
   assert.equal(elements.moves.textContent, 30);
   assert.equal(elements.healValue.textContent, '0 / 100', 'heal should have an accumulation meter');
   assert.equal(context.window.Match3Game.showDebugOptions, false, 'debug option controls should be hidden by default');
+  assert.equal(elements.blockSettings.children.length, 4, 'block settings panel should render one card per active block type');
+  assert.doesNotMatch(fs.readFileSync('index.html', 'utf8'), /<details class="block-settings"[^>]*data-debug-option/, 'block settings panel should stay visible without debug options');
 
   elements.hintButton.click();
   assert.equal(elements.board.children.filter(cell => cell.classList.contains('hint')).length, 2, 'hint should mark one swappable pair');
@@ -125,7 +133,7 @@ function wait(ms) {
   await wait(1000);
 
   assert.equal(elements.moves.textContent, 29, 'valid swap should consume one move');
-  assert.equal(elements.board.children.length, 64, 'board should still have 64 cells after resolving a move');
+  assertBoardPanelRendered(elements, 8, 'after resolving a move');
   assert.doesNotThrow(() => context.window.Match3Logic.findAvailableMove(currentBoard()));
   const totalAccumulated = Number(elements.roundAttack.textContent) + Number(elements.roundDefense.textContent) +
     Number(elements.roundSpell.textContent) + Number(elements.roundHeal.textContent);
@@ -178,8 +186,16 @@ function wait(ms) {
   assert.equal(context.window.Match3Game.state.damagePopups[0].text, '-14', 'player attack should create a damage number popup');
 
   elements.resetButton.click();
-  assert.equal(elements.board.children.length, 64, 'reset should immediately render the board');
+  assertBoardPanelRendered(elements, 8, 'reset');
   assert.equal(elements.moves.textContent, 30, 'reset should restore moves');
+
+  elements.boardSize.value = '';
+  elements.colorCount.value = '';
+  elements.fallSpeed.value = '';
+  elements.clearSpeed.value = '';
+  elements.resetButton.click();
+  assertBoardPanelRendered(elements, 8, 'reset with blank settings');
+  assert.equal(elements.target.textContent, 1200, 'blank board size should fall back without hiding the board');
 
   console.log('match3 basic UI tests passed');
 })().catch(error => {
