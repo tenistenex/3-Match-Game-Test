@@ -11,7 +11,7 @@
     <section class="hero">
       <p class="eyebrow">Match-3 Puzzle Game</p>
       <h1>簡易三消遊戲</h1>
-      <p class="subtitle">點選相鄰方塊交換，湊成 3 個以上同色方塊即可消除。開場會保持靜止，只有玩家操作後才會開始結算。</p>
+      <p class="subtitle">點選相鄰方塊交換，湊成 3 個以上同色方塊即可消除。現在每種方塊都有戰鬥效果，並會依照雙方攻擊計時器進行結算。</p>
     </section>
 
     <section class="panel controls" aria-label="遊戲設定">
@@ -37,6 +37,12 @@
       <label>消除速度(ms)
         <input type="number" id="clearSpeed" value="260" min="80" max="1000" step="10" />
       </label>
+      <label>我方攻擊頻率(秒)
+        <input type="number" id="attackInterval" value="5" min="1" max="30" step="1" />
+      </label>
+      <label>敵方攻擊頻率(秒)
+        <input type="number" id="enemyInterval" value="5" min="1" max="30" step="1" />
+      </label>
       <button id="resetButton" type="button">重設遊戲</button>
       <button id="hintButton" type="button" class="secondary">提示</button>
     </section>
@@ -47,18 +53,39 @@
       <article><span>目標</span><strong id="target">1200</strong></article>
       <article><span>時間</span><strong id="timer">00:00</strong></article>
       <article><span>連鎖</span><strong id="combo">x1</strong></article>
+      <article><span>我方血量</span><strong id="playerHp">10/10</strong></article>
+      <article><span>敵方血量</span><strong id="enemyHp">10/10</strong></article>
+      <article><span>我方攻擊</span><strong id="playerAttackCountdown">--</strong></article>
+      <article><span>敵方攻擊</span><strong id="enemyAttackCountdown">--</strong></article>
     </section>
 
     <section class="game-layout">
       <div id="board" class="board" aria-label="三消遊戲棋盤"></div>
       <aside class="panel business-panel">
-        <h2>商業化常見功能</h2>
+        <h2>戰鬥狀態</h2>
+        <div class="battle-stage" aria-label="角色戰鬥展示">
+          <div class="fighter hero-fighter">
+            <div id="heroSprite" class="pixel-sprite hero-sprite" aria-label="我方像素角色"></div>
+            <strong>我方</strong>
+          </div>
+          <div class="versus">VS</div>
+          <div class="fighter enemy-fighter">
+            <div id="enemySprite" class="pixel-sprite enemy-sprite" aria-label="敵方像素角色"></div>
+            <strong>敵方</strong>
+          </div>
+        </div>
+        <div class="effect-grid" aria-label="本輪累積效果">
+          <span>⚔ 攻擊 <strong id="roundAttack">0</strong></span>
+          <span>🛡 防禦 <strong id="roundDefense">0</strong></span>
+          <span>✦ 法術 <strong id="roundSpell">0</strong></span>
+          <span>❤ 回血 <strong id="roundHeal">0</strong></span>
+        </div>
         <ul>
-          <li>分數、目標分、剩餘步數與計時。</li>
-          <li>提示按鈕與無解自動重排。</li>
-          <li>勝利 / 失敗狀態提示。</li>
-          <li>動畫速度可調，方便做關卡難度。</li>
+          <li>預設方塊效果：攻擊、防禦、法術、回血。</li>
+          <li>我方攻擊時間到時，會用攻擊與法術傷害攻擊敵方，回血方塊會回復我方血量。</li>
+          <li>敵方攻擊預設 10，會扣掉本輪防禦方塊，剩餘傷害扣我方血量。</li>
         </ul>
+        <p id="battleLog" class="battle-log">尚未攻擊。</p>
         <p id="status" class="status">請交換相鄰方塊開始遊戲。</p>
       </aside>
     </section>
