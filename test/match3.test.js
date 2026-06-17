@@ -114,6 +114,8 @@ function assertBoardPanelRendered(elements, expectedSize, message) {
   assert.equal(elements.moves.textContent, 30);
   assert.equal(elements.healValue.textContent, '0 / 100', 'heal should have an accumulation meter');
   assert.equal(context.window.Match3Game.showDebugOptions, false, 'debug option controls should be hidden by default');
+  assert.equal(elements.blockSettings.children.length, 4, 'block settings panel should render one card per active block type');
+  assert.doesNotMatch(fs.readFileSync('index.html', 'utf8'), /<details class="block-settings"[^>]*data-debug-option/, 'block settings panel should stay visible without debug options');
 
   elements.hintButton.click();
   assert.equal(elements.board.children.filter(cell => cell.classList.contains('hint')).length, 2, 'hint should mark one swappable pair');
