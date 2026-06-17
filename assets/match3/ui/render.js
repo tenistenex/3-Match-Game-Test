@@ -55,11 +55,18 @@
         div.setAttribute('aria-label', `第 ${r + 1} 列第 ${c + 1} 欄`);
         if (value === null) div.classList.add('empty');
         else {
-          const type = blockType(value);
+          const isSpecial = window.Match3Logic && window.Match3Logic.isSpecialBlock(value);
+          const special = isSpecial ? value.special : null;
+          const type = blockType(isSpecial ? value.color : value);
           div.style.background = type.color;
           div.dataset.type = type.stat;
-          div.innerHTML = `<span class="cell-icon" aria-hidden="true">${type.icon}</span>`;
-          div.title = type.name;
+          if (isSpecial) {
+            div.dataset.special = special;
+            div.classList.add('special', `special-${special}`);
+          }
+          const specialIcon = special === 'line-row' ? '↔' : special === 'line-column' ? '↕' : special === 'bomb' ? '✹' : special === 'color' ? '🌈' : '';
+          div.innerHTML = `<span class="cell-icon" aria-hidden="true">${type.icon}</span>${specialIcon ? `<span class="special-icon" aria-hidden="true">${specialIcon}</span>` : ''}`;
+          div.title = isSpecial ? `${type.name}特殊方塊：${specialIcon}` : type.name;
           div.addEventListener('click', () => onCellClick(pos));
         }
         if (state.selected && state.selected.r === r && state.selected.c === c) div.classList.add('selected');
