@@ -128,6 +128,33 @@ function wait(ms) {
     Number(elements.roundSpell.textContent) + Number(elements.roundHeal.textContent);
   assert.ok(totalAccumulated > 0, 'cleared blocks should accumulate battle effects');
 
+
+
+  const logic = context.window.Match3Logic;
+  assert.equal(logic.getSpecialForGroup({ orientation: 'row', cells: [{}, {}, {}, {}] }), logic.SPECIAL_TYPES.LINE_ROW, 'four in a row should make a horizontal line special');
+  assert.equal(logic.getSpecialForGroup({ orientation: 'column', cells: [{}, {}, {}, {}] }), logic.SPECIAL_TYPES.LINE_COLUMN, 'four in a column should make a vertical line special');
+  assert.equal(logic.getSpecialForGroup({ orientation: 'row', cells: [{}, {}, {}, {}, {}] }), logic.SPECIAL_TYPES.COLOR, 'five matched blocks should make a color-clear special');
+  const special = logic.createSpecialBlock(2, logic.SPECIAL_TYPES.BOMB);
+  assert.equal(logic.colorOf(special), 2, 'special blocks should keep their original color');
+
+
+
+  context.window.Match3Game.resetGame();
+  context.window.Match3Game.state.board = Array.from({ length: 8 }, (_, r) =>
+    Array.from({ length: 8 }, (_, c) => (r + c) % 4)
+  );
+  context.window.Match3Game.state.board[0][0] = logic.createSpecialBlock(1, logic.SPECIAL_TYPES.LINE_ROW);
+  context.window.Match3Game.state.board[0][1] = { special: logic.SPECIAL_TYPES.BOMB };
+  context.window.Match3Renderer.createRenderer({
+    state: context.window.Match3Game.state,
+    blockType: context.window.Match3Config.blockType,
+    formatCountdown: () => '--',
+    countdownProgress: () => 0,
+    onCellClick: () => {}
+  }).render();
+  assert.equal(elements.board.children.length, 64, 'board should stay visible when special blocks are rendered');
+  assert.ok(elements.board.children[0].classList.contains('special'), 'special block should be marked in the board');
+
   elements.resetButton.click();
   assert.equal(elements.board.children.length, 64, 'reset should immediately render the board');
   assert.equal(elements.moves.textContent, 30, 'reset should restore moves');
