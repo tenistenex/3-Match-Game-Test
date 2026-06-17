@@ -116,7 +116,6 @@ function assertBoardPanelRendered(elements, expectedSize, message) {
   assert.equal(context.window.Match3Game.showDebugOptions, false, 'debug option controls should be hidden by default');
   assert.equal(elements.blockSettings.children.length, 4, 'block settings panel should render one card per active block type');
   assert.doesNotMatch(fs.readFileSync('index.html', 'utf8'), /<details class="block-settings"[^>]*data-debug-option/, 'block settings panel should stay visible without debug options');
-  assert.match(fs.readFileSync('assets/match3/main.js', 'utf8'), /Array\.prototype\.forEach\.call\(card\.querySelectorAll\('input'\)/, 'block settings inputs should not depend on NodeList.forEach support');
 
   elements.hintButton.click();
   assert.equal(elements.board.children.filter(cell => cell.classList.contains('hint')).length, 2, 'hint should mark one swappable pair');

@@ -19,10 +19,7 @@
   function sleepMsFromSeconds(seconds) { return Math.max(1, Number(seconds)) * 1000; }
   function formatNumber(value) { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
 
-  function readNumberInput(id, fallback, range) {
-    const limits = range || {};
-    const min = limits.min === undefined ? -Infinity : limits.min;
-    const max = limits.max === undefined ? Infinity : limits.max;
+  function readNumberInput(id, fallback, { min = -Infinity, max = Infinity } = {}) {
     const raw = $(id).value;
     const value = raw === '' || raw === null || raw === undefined ? NaN : Number(raw);
     const safe = Number.isFinite(value) ? value : fallback;
