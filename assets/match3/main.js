@@ -107,7 +107,7 @@
           <input type="number" min="80" max="2000" step="10" value="${type.clearSpeed}" data-block-index="${index}" data-block-field="clearSpeed" />
         </label>
       `;
-      card.querySelectorAll('input').forEach(input => {
+      Array.prototype.forEach.call(card.querySelectorAll('input'), input => {
         input.addEventListener('change', event => {
           const target = event.target;
           const block = BLOCK_TYPES[Number(target.dataset.blockIndex)];
