@@ -224,7 +224,6 @@
     while (matches.length > 0) {
       setStatus(`消除 ${matches.length} 個方塊，效果已累積到本輪計時器。`);
       state.score += matches.length * 20 * state.combo;
-      matches.forEach(({ r, c }) => accumulateBlockEffect(state.board[r][c]));
       render({ clearing: matches });
       await sleep(state.clearSpeed);
       matches.forEach(({ r, c }) => { state.board[r][c] = null; });

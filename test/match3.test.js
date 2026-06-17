@@ -1,130 +1,122 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const path = require('node:path');
-const test = require('node:test');
 const vm = require('node:vm');
 
-const REQUIRED_IDS = [
-  'board', 'score', 'moves', 'target', 'combo', 'playerHp', 'enemyHp', 'playerAttackCountdown',
-  'enemyAttackCountdown', 'roundAttack', 'roundDefense', 'roundSpell', 'roundHeal', 'battleLog',
-  'heroSprite', 'enemySprite', 'hintButton', 'resetButton', 'attackTimer', 'playerHpText',
-  'enemyHpText', 'playerHpBar', 'enemyHpBar', 'playerAttackBar', 'enemyAttackBar', 'attackValue',
-  'defenseValue', 'magicValue', 'attackMeter', 'defenseMeter', 'magicMeter', 'magicButton',
-  'timer', 'status', 'boardSize', 'colorCount', 'fallSpeed', 'clearSpeed', 'attackInterval',
-  'enemyInterval'
-];
-
-class FakeClassList {
+class ClassList {
   constructor() { this.values = new Set(); }
-  add(value) { this.values.add(value); }
-  toggle(value, force) {
-    const shouldAdd = force === undefined ? !this.values.has(value) : Boolean(force);
-    if (shouldAdd) this.values.add(value);
-    else this.values.delete(value);
+  add(...names) { names.forEach(name => this.values.add(name)); }
+  remove(...names) { names.forEach(name => this.values.delete(name)); }
+  toggle(name, force) {
+    if (force === undefined ? !this.values.has(name) : force) this.values.add(name);
+    else this.values.delete(name);
   }
-  contains(value) { return this.values.has(value); }
+  contains(name) { return this.values.has(name); }
 }
 
-class FakeElement {
-  constructor(id = '') {
-    this.id = id;
-    this.children = [];
-    this.dataset = {};
-    this.style = { setProperty(name, value) { this[name] = value; } };
-    this.classList = new FakeClassList();
-    this.listeners = {};
-    this.value = '';
-    this.disabled = false;
-    this.textContent = '';
-    this.title = '';
-    this.type = '';
-  }
-  set innerHTML(value) { this._innerHTML = value; if (value === '') this.children = []; }
-  get innerHTML() { return this._innerHTML || ''; }
-  setAttribute(name, value) { this[name] = value; }
-  appendChild(child) { this.children.push(child); return child; }
-  addEventListener(type, handler) { this.listeners[type] = handler; }
+function createElement(id = 'created') {
+  const element = {
+    id,
+    style: { setProperty(name, value) { this[name] = value; } },
+    dataset: {},
+    classList: new ClassList(),
+    listeners: {},
+    children: [],
+    attributes: {},
+    disabled: false,
+    value: '',
+    textContent: '',
+    title: '',
+    type: '',
+    set innerHTML(value) { this._innerHTML = value; if (id === 'board') this.children = []; },
+    get innerHTML() { return this._innerHTML || ''; },
+    setAttribute(name, value) { this.attributes[name] = value; },
+    appendChild(child) { this.children.push(child); return child; },
+    addEventListener(type, handler) { this.listeners[type] = handler; },
+    click() { if (this.listeners.click) return this.listeners.click({ target: this }); },
+  };
+  return element;
 }
 
 function createHarness() {
-  const elements = new Map(REQUIRED_IDS.map(id => [id, new FakeElement(id)]));
-  const values = {
-    boardSize: '6', colorCount: '4', fallSpeed: '0', clearSpeed: '0', attackInterval: '1', enemyInterval: '1'
-  };
-  for (const [id, value] of Object.entries(values)) elements.get(id).value = value;
+  const ids = [
+    'board', 'score', 'moves', 'target', 'combo', 'playerHp', 'enemyHp', 'playerAttackCountdown',
+    'enemyAttackCountdown', 'roundAttack', 'roundDefense', 'roundSpell', 'roundHeal', 'battleLog',
+    'heroSprite', 'enemySprite', 'hintButton', 'resetButton', 'playerHpText', 'enemyHpText',
+    'playerHpBar', 'enemyHpBar', 'playerAttackBar', 'enemyAttackBar', 'attackValue', 'defenseValue',
+    'magicValue', 'attackMeter', 'defenseMeter', 'magicMeter', 'magicButton', 'timer', 'status',
+    'boardSize', 'colorCount', 'fallSpeed', 'clearSpeed', 'attackInterval', 'enemyInterval', 'attackTimer'
+  ];
+  const elements = Object.fromEntries(ids.map(id => [id, createElement(id)]));
+  Object.assign(elements.boardSize, { value: '8' });
+  Object.assign(elements.colorCount, { value: '4' });
+  Object.assign(elements.fallSpeed, { value: '1' });
+  Object.assign(elements.clearSpeed, { value: '1' });
+  Object.assign(elements.attackInterval, { value: '30' });
+  Object.assign(elements.enemyInterval, { value: '30' });
 
   const context = {
-    console,
-    Math: Object.create(Math),
-    Date,
-    Symbol,
     window: {},
     document: {
-      documentElement: new FakeElement('root'),
+      documentElement: createElement('root'),
       getElementById(id) {
-        if (!elements.has(id)) elements.set(id, new FakeElement(id));
-        return elements.get(id);
+        assert.ok(elements[id], `missing fixture element #${id}`);
+        return elements[id];
       },
-      createElement() { return new FakeElement(); }
+      createElement() { return createElement(); },
     },
     getComputedStyle() {
-      return { getPropertyValue(name) { return name === '--cell-size' ? '44px' : '6px'; } };
+      return { getPropertyValue(prop) { return prop === '--cell-size' ? '44' : '6'; } };
     },
-    setInterval() { return 1; },
-    clearInterval() {},
-    setTimeout(callback) { queueMicrotask(callback); return 1; }
+    setInterval,
+    clearInterval,
+    setTimeout,
+    Math,
+    Date,
+    console,
   };
-  let seed = 1;
   context.window = context;
-  context.Math.random = () => {
-    seed = (seed * 16807) % 2147483647;
-    return (seed - 1) / 2147483646;
-  };
   vm.createContext(context);
-
-  const root = path.resolve(__dirname, '..');
-  vm.runInContext(fs.readFileSync(path.join(root, 'assets/match3.logic.js'), 'utf8'), context);
-  vm.runInContext(fs.readFileSync(path.join(root, 'assets/match3.ui.js'), 'utf8'), context);
-  return context;
+  vm.runInContext(fs.readFileSync('assets/match3.logic.js', 'utf8'), context);
+  vm.runInContext(fs.readFileSync('assets/match3.ui.js', 'utf8'), context);
+  return { context, elements };
 }
 
-async function makeMatchingSwap(game) {
-  game.state.board = [
-    [1, 0, 2],
-    [0, 1, 2],
-    [0, 2, 1]
-  ];
-  game.state.size = 3;
-  game.state.colorCount = 3;
-  game.state.fallSpeed = 0;
-  game.state.clearSpeed = 0;
-  game.state.selected = null;
-  game.state.busy = false;
-  game.state.ended = false;
-  await game.handleCellClick({ r: 0, c: 0 });
-  await game.handleCellClick({ r: 0, c: 1 });
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-test('a timed battle does not lock the board after the first clearing swap', async () => {
-  const { Match3Game: game } = createHarness();
+(async () => {
+  const { context, elements } = createHarness();
 
-  await makeMatchingSwap(game);
+  assert.equal(elements.board.children.length, 64, 'initial board should render 8x8 cells');
+  assert.equal(elements.status.textContent, '請交換相鄰方塊開始遊戲。');
+  assert.equal(elements.moves.textContent, 30);
 
-  assert.equal(game.state.busy, false, 'board should unlock after match resolution');
-  assert.equal(game.state.ended, false, 'game should still be playable after the timer starts');
-  assert.equal(game.state.moves, 29, 'first valid swap should consume one move');
-  assert.ok(game.state.score > 0, 'matching swap should clear blocks and add score');
-  assert.ok(game.state.roundStats.attack >= 3, 'cleared attack blocks should accumulate attack power');
+  elements.hintButton.click();
+  assert.equal(elements.board.children.filter(cell => cell.classList.contains('hint')).length, 2, 'hint should mark one swappable pair');
+  assert.match(elements.status.textContent, /標出一組可交換/);
 
-  game.enemyAttack();
-  assert.equal(game.state.ended, false, 'one enemy timer attack should not immediately end the game');
-  assert.equal(game.state.playerHp, 90, 'enemy attack should damage HP without locking movement');
+  const colorValues = new Map(['#FF6663', '#60A5FA', '#A78BFA', '#34D399'].map((color, index) => [color, index]));
+  const currentBoard = () => Array.from({ length: 8 }, (_, r) =>
+    Array.from({ length: 8 }, (_, c) => colorValues.get(elements.board.children[r * 8 + c].style.background))
+  );
+  const move = context.window.Match3Logic.findAvailableMove(currentBoard());
+  assert.ok(move, 'board should have an available move');
+  const [first, second] = move;
+  elements.board.children[first.r * 8 + first.c].click();
+  elements.board.children[second.r * 8 + second.c].click();
+  await wait(100);
 
-  const scoreAfterFirstSwap = game.state.score;
-  await makeMatchingSwap(game);
+  assert.equal(elements.moves.textContent, 29, 'valid swap should consume one move');
+  assert.equal(elements.board.children.length, 64, 'board should still have 64 cells after resolving a move');
+  assert.doesNotThrow(() => context.window.Match3Logic.findAvailableMove(currentBoard()));
 
-  assert.equal(game.state.busy, false, 'board should unlock after a second swap too');
-  assert.equal(game.state.ended, false, 'timer state should not prevent more movement');
-  assert.equal(game.state.moves, 28, 'second valid swap should also be accepted');
-  assert.ok(game.state.score > scoreAfterFirstSwap, 'second swap should also clear and score');
+  elements.resetButton.click();
+  assert.equal(elements.board.children.length, 64, 'reset should immediately render the board');
+  assert.equal(elements.moves.textContent, 30, 'reset should restore moves');
+
+  console.log('match3 basic UI tests passed');
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
 });

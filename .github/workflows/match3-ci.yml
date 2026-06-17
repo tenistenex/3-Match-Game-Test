@@ -1,0 +1,31 @@
+name: Match-3 CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  test:
+    name: Validate game scripts and UI smoke tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check UI script syntax
+        run: node --check assets/match3.ui.js
+
+      - name: Check game logic script syntax
+        run: node --check assets/match3.logic.js
+
+      - name: Run Match-3 UI regression tests
+        run: node test/match3.test.js
