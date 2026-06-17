@@ -99,7 +99,7 @@
       $('score').textContent = state.score;
       $('moves').textContent = state.moves;
       $('target').textContent = state.target;
-      $('combo').textContent = `x${state.combo}`;
+      $('combo').textContent = `連擊 ${state.lastComboCount}（目前 x${state.combo}）`;
       $('playerHp').textContent = `${formatNumber(state.playerHp)}/${formatNumber(state.playerMaxHp)}`;
       $('enemyHp').textContent = `${formatNumber(state.enemyHp)}/${formatNumber(state.enemyMaxHp)}`;
       $('playerAttackCountdown').textContent = formatCountdown(state.nextPlayerAttackAt);

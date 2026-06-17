@@ -187,14 +187,23 @@ function assertBoardPanelRendered(elements, expectedSize, message) {
   context.window.Match3Game.state.roundStats.attack = 7;
   context.window.Match3Game.state.roundStats.heal = 5;
   context.window.Match3Game.state.attackMultiplier = 2;
+  context.window.Match3Game.state.lastComboCount = 2;
   context.window.Match3Game.state.playerHp = 110;
   context.window.Match3Game.playerAttack();
-  assert.equal(context.window.Match3Game.state.enemyHp, 136, 'player attack should apply the actual calculated damage');
+  assert.equal(context.window.Match3Game.state.enemyHp, 133.06, 'player attack should apply attack blocks times 1.1^combo times attack power');
   assert.equal(context.window.Match3Game.state.playerHp, 115, 'player attack should apply accumulated healing to the hero');
   assert.equal(context.window.Match3Game.state.damagePopups[0].target, 'enemy', 'player attack damage popup should appear over the enemy');
-  assert.equal(context.window.Match3Game.state.damagePopups[0].text, '-14', 'player attack should create a damage number popup');
+  assert.equal(context.window.Match3Game.state.damagePopups[0].text, '-16.9', 'player attack should create a damage number popup');
   assert.equal(context.window.Match3Game.state.damagePopups[1].target, 'hero', 'healing popup should appear over the hero');
   assert.equal(context.window.Match3Game.state.damagePopups[1].text, '+5', 'player attack should create a heal number popup');
+
+  elements.resetButton.click();
+  context.window.Match3Game.state.roundStats.defense = 8;
+  context.window.Match3Game.state.defenseMultiplier = 1;
+  context.window.Match3Game.state.enemyAttackPower = 12;
+  context.window.Match3Game.enemyAttack();
+  assert.equal(context.window.Match3Game.state.playerHp, 116, 'enemy attack should subtract damage after defense blocks');
+  assert.equal(context.window.Match3Game.state.roundStats.defense, 4, 'defense should be halved when the enemy timer resets');
 
   elements.resetButton.click();
   assertBoardPanelRendered(elements, 8, 'reset');
