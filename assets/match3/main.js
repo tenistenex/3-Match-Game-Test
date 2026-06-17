@@ -1,12 +1,13 @@
 (function () {
   const logic = window.Match3Logic;
   const { blockType } = window.Match3Config;
-  const { DEFAULT_HP, ENEMY_ATTACK, createState, resetRoundStats } = window.Match3State;
+  const { createState, resetRoundStats } = window.Match3State;
   const { $, clamp, setStatus } = window.Match3Dom;
   const state = createState();
 
   function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
   function sleepMsFromSeconds(seconds) { return Math.max(1, Number(seconds)) * 1000; }
+  function formatNumber(value) { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
   function formatCountdown(target) {
     if (!target || state.ended) return '--';
     return `${Math.max(0, Math.ceil((target - Date.now()) / 1000))}s`;
@@ -59,7 +60,9 @@
 
   function resetGame() {
     stopTimers();
-    Object.assign(state, { size: Number($('boardSize').value), colorCount: Number($('colorCount').value), fallSpeed: Number($('fallSpeed').value), clearSpeed: Number($('clearSpeed').value), attackInterval: Number($('attackInterval').value), enemyInterval: Number($('enemyInterval').value), selected: null, busy: false, score: 0, moves: 30, target: Number($('boardSize').value) * 150, combo: 1, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: DEFAULT_HP, enemyHp: DEFAULT_HP, maxHp: DEFAULT_HP, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
+    const playerMaxHp = Math.max(1, Number($('playerMaxHpInput').value));
+    const enemyMaxHp = Math.max(1, Number($('enemyMaxHpInput').value));
+    Object.assign(state, { size: Number($('boardSize').value), colorCount: Number($('colorCount').value), fallSpeed: Number($('fallSpeed').value), clearSpeed: Number($('clearSpeed').value), attackInterval: Number($('attackInterval').value), enemyInterval: Number($('enemyInterval').value), attackMultiplier: Math.max(0, Number($('attackMultiplier').value)), defenseMultiplier: Math.max(0, Number($('defenseMultiplier').value)), enemyAttackPower: Math.max(0, Number($('enemyAttackPower').value)), selected: null, busy: false, score: 0, moves: 30, target: Number($('boardSize').value) * 150, combo: 1, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
     resetRoundStats(state);
     state.board = logic.createBoard(state.size, state.colorCount);
     updateTimer();
@@ -111,7 +114,11 @@
       state.score += matches.length * 20 * state.combo;
       render({ clearing: matches });
       await sleep(state.clearSpeed);
-      matches.forEach(({ r, c }) => { state.board[r][c] = null; });
+      matches.forEach(({ r, c }) => {
+        const type = blockType(state.board[r][c]);
+        state.roundStats[type.stat] += 1;
+        state.board[r][c] = null;
+      });
       const collapsed = logic.collapse(state.board, state.colorCount);
       state.board = collapsed.board;
       render({ fallMoves: collapsed.fallMoves, spawnMoves: collapsed.spawnMoves });
@@ -146,11 +153,11 @@
   render = renderer.render;
   renderBattleStats = renderer.renderBattleStats;
 
-  const battle = window.Match3Battle.createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, enemyAttackPower: ENEMY_ATTACK });
+  const battle = window.Match3Battle.createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, formatNumber });
   playerAttack = battle.playerAttack;
   enemyAttack = battle.enemyAttack;
 
-  ['colorCount', 'boardSize'].forEach(id => $(id).addEventListener('change', resetGame));
+  ['colorCount', 'boardSize', 'playerMaxHpInput', 'enemyMaxHpInput', 'attackMultiplier', 'defenseMultiplier', 'enemyAttackPower'].forEach(id => $(id).addEventListener('change', resetGame));
   $('fallSpeed').addEventListener('change', e => { state.fallSpeed = Number(e.target.value); render(); });
   $('clearSpeed').addEventListener('change', e => { state.clearSpeed = Number(e.target.value); render(); });
   $('attackInterval').addEventListener('change', resetGame);

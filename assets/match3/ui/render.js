@@ -5,6 +5,7 @@
   function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
   function setStatus(text) { $('status').textContent = text; }
   function setBar(id, value, max = 100) { $(id).style.width = `${clamp(value, 0, max) / max * 100}%`; }
+  function formatNumber(value) { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
   function cellPixels() {
     const root = getComputedStyle(document.documentElement);
     return parseFloat(root.getPropertyValue('--cell-size')) + parseFloat(root.getPropertyValue('--gap'));
@@ -12,22 +13,24 @@
 
   function createRenderer({ state, blockType, formatCountdown, countdownProgress, onCellClick }) {
     function renderBattleStats() {
-      const attack = clamp(state.roundStats.attack * 10, 0, 100);
-      const defense = clamp(state.roundStats.defense * 10, 0, 100);
-      const magic = clamp(state.roundStats.spell * 10, 0, 100);
+      const attack = state.roundStats.attack * state.attackMultiplier;
+      const defense = state.roundStats.defense * state.defenseMultiplier;
+      const magic = state.roundStats.spell * 10;
+      const attackMeterMax = Math.max(100, state.enemyMaxHp);
+      const defenseMeterMax = Math.max(100, state.enemyAttackPower);
 
       $('attackTimer').textContent = formatCountdown(state.nextPlayerAttackAt) === '--' ? `${state.attackInterval}.0s` : formatCountdown(state.nextPlayerAttackAt);
-      $('playerHpText').textContent = `${state.playerHp} / ${state.maxHp}`;
-      $('enemyHpText').textContent = `${state.enemyHp} / ${state.maxHp}`;
-      setBar('playerHpBar', state.playerHp, state.maxHp);
-      setBar('enemyHpBar', state.enemyHp, state.maxHp);
+      $('playerHpText').textContent = `${formatNumber(state.playerHp)} / ${formatNumber(state.playerMaxHp)}`;
+      $('enemyHpText').textContent = `${formatNumber(state.enemyHp)} / ${formatNumber(state.enemyMaxHp)}`;
+      setBar('playerHpBar', state.playerHp, state.playerMaxHp);
+      setBar('enemyHpBar', state.enemyHp, state.enemyMaxHp);
       setBar('playerAttackBar', countdownProgress(state.nextPlayerAttackAt, state.attackInterval));
       setBar('enemyAttackBar', countdownProgress(state.nextEnemyAttackAt, state.enemyInterval));
-      $('attackValue').textContent = `${attack} / 100`;
-      $('defenseValue').textContent = `${defense} / 100`;
-      $('magicValue').textContent = `${magic} / 100`;
-      setBar('attackMeter', attack);
-      setBar('defenseMeter', defense);
+      $('attackValue').textContent = `${formatNumber(attack)} / ${formatNumber(attackMeterMax)}`;
+      $('defenseValue').textContent = `${formatNumber(defense)} / ${formatNumber(defenseMeterMax)}`;
+      $('magicValue').textContent = `${formatNumber(clamp(magic, 0, 100))} / 100`;
+      setBar('attackMeter', attack, attackMeterMax);
+      setBar('defenseMeter', defense, defenseMeterMax);
       setBar('magicMeter', magic);
       $('magicButton').disabled = state.ended || state.magicArmed || state.roundStats.spell < 5;
       $('magicButton').textContent = state.magicArmed ? '魔法已準備：下次攻擊 x2' : '使用魔法（消耗 5 法術，下次攻擊 x2）';
@@ -77,8 +80,8 @@
       $('moves').textContent = state.moves;
       $('target').textContent = state.target;
       $('combo').textContent = `x${state.combo}`;
-      $('playerHp').textContent = `${state.playerHp}/${state.maxHp}`;
-      $('enemyHp').textContent = `${state.enemyHp}/${state.maxHp}`;
+      $('playerHp').textContent = `${formatNumber(state.playerHp)}/${formatNumber(state.playerMaxHp)}`;
+      $('enemyHp').textContent = `${formatNumber(state.enemyHp)}/${formatNumber(state.enemyMaxHp)}`;
       $('playerAttackCountdown').textContent = formatCountdown(state.nextPlayerAttackAt);
       $('enemyAttackCountdown').textContent = formatCountdown(state.nextEnemyAttackAt);
       $('roundAttack').textContent = state.roundStats.attack;
