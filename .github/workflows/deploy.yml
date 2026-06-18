@@ -6,7 +6,7 @@ on:
     branches:
       - main
       - master
-      - work
+      - docs/level-design-proposal
   workflow_dispatch:
 
 permissions:
