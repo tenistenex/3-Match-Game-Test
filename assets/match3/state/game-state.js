@@ -34,7 +34,7 @@
       board: [], size: 8, colorCount: 4, fallSpeed: 420, clearSpeed: 260,
       run: createRunState(),
       selected: null, busy: false, score: 0, moves: 30, combo: 1,
-      currentTurnCombo: 0, lastComboCount: 0,
+      currentTurnCombo: 0, lastComboCount: 0, playerAttackThreshold: 10,
       startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null,
       hint: [], playerHp: DEFAULT_HP, enemyHp: DEFAULT_HP, playerMaxHp: DEFAULT_HP, enemyMaxHp: DEFAULT_HP,
       attackMultiplier: 1, defenseMultiplier: 1, enemyAttackPower: ENEMY_ATTACK,

@@ -25,7 +25,13 @@
     }
 
     function playerAttack() {
-      if (state.ended) return;
+      if (state.ended) return false;
+      const attackThreshold = state.playerAttackThreshold || 10;
+      if (state.roundStats.attack < attackThreshold) {
+        state.lastAction = `我方攻擊尚未觸發：已累積 ${formatNumber(state.roundStats.attack)} / ${formatNumber(attackThreshold)} 個攻擊方塊。`;
+        render();
+        return false;
+      }
       const comboMultiplier = Math.pow(1.1, state.lastComboCount);
       const baseDamage = state.roundStats.attack * comboMultiplier * state.attackMultiplier;
       const damage = state.magicArmed ? baseDamage * 2 : baseDamage;
@@ -41,10 +47,11 @@
       state.roundStats.spell = 0;
       state.roundStats.heal = 0;
       state.magicArmed = false;
-      state.nextPlayerAttackAt = Date.now() + sleepMsFromSeconds(state.attackInterval);
+      state.nextPlayerAttackAt = null;
       flashActor('hero');
       if (typeof onAfterPlayerAttack === 'function') onAfterPlayerAttack();
       checkBattleEnd();
+      return true;
     }
 
     function enemyAttack() {
