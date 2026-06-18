@@ -1,5 +1,5 @@
 (function (global) {
-  function createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, formatNumber, onBattleWin, onAfterPlayerAttack }) {
+  function createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, formatNumber, onBattleWin, onAfterPlayerAttack, onEnemyBoardLock }) {
     function showDamagePopup(target, amount, kind = 'damage') {
       const id = `${Date.now()}-${Math.random()}`;
       const prefix = kind === 'heal' ? '+' : '-';
@@ -63,6 +63,7 @@
       if (damage > 0) showDamagePopup('hero', damage);
       state.roundStats.defense = defenseBeforeDecay / 2;
       state.lastAction = `敵方攻擊 ${formatNumber(state.enemyAttackPower)}，防禦方塊抵擋 ${formatNumber(blocked)}，我方受到 ${formatNumber(damage)} 傷害。防禦半衰期：${formatNumber(defenseBeforeDecay)} → ${formatNumber(state.roundStats.defense)}。`;
+      if (typeof onEnemyBoardLock === 'function') onEnemyBoardLock();
       state.nextEnemyAttackAt = Date.now() + sleepMsFromSeconds(state.enemyInterval);
       flashActor('enemy');
       checkBattleEnd();
