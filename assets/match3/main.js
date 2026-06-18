@@ -133,6 +133,12 @@
 
   function updateAttackTimer() { renderBattleStats(); }
 
+  function maybeTriggerPlayerAttack() {
+    if (state.ended || state.busy) return false;
+    if (state.roundStats.attack < (state.playerAttackThreshold || 10)) return false;
+    return playerAttack();
+  }
+
   function beginPlayerOperation() {
     state.currentTurnCombo = 0;
   }
@@ -257,7 +263,7 @@
     if (!state.startedAt) { $('timer').textContent = '00:00'; return; }
     const sec = Math.floor((Date.now() - state.startedAt) / 1000);
     $('timer').textContent = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
-    $('playerAttackCountdown').textContent = formatCountdown(state.nextPlayerAttackAt, state.attackInterval);
+    $('playerAttackCountdown').textContent = state.roundStats.attack >= (state.playerAttackThreshold || 10) ? '準備攻擊' : `${formatNumber(state.roundStats.attack)} / ${formatNumber(state.playerAttackThreshold || 10)}`;
     $('enemyAttackCountdown').textContent = formatCountdown(state.nextEnemyAttackAt, state.enemyInterval);
     renderBattleStats();
   }
@@ -265,10 +271,10 @@
   function startTimers() {
     if (state.startedAt || state.ended) return;
     state.startedAt = Date.now();
-    state.nextPlayerAttackAt = Date.now() + sleepMsFromSeconds(state.attackInterval);
+    state.nextPlayerAttackAt = null;
     state.nextEnemyAttackAt = Date.now() + sleepMsFromSeconds(state.enemyInterval);
     state.timerId = setInterval(updateTimer, 100);
-    state.attackTimerId = setInterval(playerAttack, sleepMsFromSeconds(state.attackInterval));
+    state.attackTimerId = null;
     state.enemyTimerId = setInterval(enemyAttack, sleepMsFromSeconds(state.enemyInterval));
   }
 
@@ -294,7 +300,7 @@
     const playerMaxHp = readIntegerInput('playerMaxHpInput', hero.maxHp, { min: 1, max: 9999 }) + hero.maxHp - 100;
     const enemyMaxHp = node.enemy ? node.enemy.hp : readIntegerInput('enemyMaxHpInput', state.enemyMaxHp || 100, { min: 1, max: 9999 });
     applyLevelBlockWeights(node);
-    Object.assign(state, { size, colorCount, fallSpeed: readNumberInput('fallSpeed', state.fallSpeed || 420, { min: 1, max: 5000 }), clearSpeed: readNumberInput('clearSpeed', state.clearSpeed || 260, { min: 1, max: 5000 }), attackInterval: readNumberInput('attackInterval', state.attackInterval || 5, { min: 1, max: 3600 }), enemyInterval: node.enemy ? node.enemy.attackInterval : readNumberInput('enemyInterval', state.enemyInterval || 5, { min: 1, max: 3600 }), attackMultiplier: hero.attackMultiplier, defenseMultiplier: hero.defenseMultiplier, enemyAttackPower: node.enemy ? node.enemy.attack : readNumberInput('enemyAttackPower', state.enemyAttackPower || 10, { min: 0, max: 9999 }), selected: null, busy: false, score: 0, moves: node.moves || 30, combo: 1, currentTurnCombo: 0, lastComboCount: 0, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
+    Object.assign(state, { size, colorCount, fallSpeed: readNumberInput('fallSpeed', state.fallSpeed || 420, { min: 1, max: 5000 }), clearSpeed: readNumberInput('clearSpeed', state.clearSpeed || 260, { min: 1, max: 5000 }), attackInterval: readNumberInput('attackInterval', state.attackInterval || 5, { min: 1, max: 3600 }), enemyInterval: node.enemy ? node.enemy.attackInterval : readNumberInput('enemyInterval', state.enemyInterval || 5, { min: 1, max: 3600 }), attackMultiplier: hero.attackMultiplier, defenseMultiplier: hero.defenseMultiplier, enemyAttackPower: node.enemy ? node.enemy.attack : readNumberInput('enemyAttackPower', state.enemyAttackPower || 10, { min: 0, max: 9999 }), selected: null, busy: false, score: 0, moves: node.moves || 30, combo: 1, currentTurnCombo: 0, lastComboCount: 0, playerAttackThreshold: 10, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，敵方攻擊計時器會開始；我方累積 10 個攻擊方塊後出手。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
     resetRoundStats(state);
     state.board = logic.createBoard(state.size, state.colorCount);
     renderBlockSettings();
@@ -316,8 +322,9 @@
       await activateSpecial(pos);
       finishPlayerOperation();
       state.combo = 1;
-      endTurnCheck();
       state.busy = false;
+      maybeTriggerPlayerAttack();
+      endTurnCheck();
       render();
       return;
     }
@@ -334,8 +341,9 @@
       state.selected = null;
       finishPlayerOperation();
       state.combo = 1;
-      endTurnCheck();
       state.busy = false;
+      maybeTriggerPlayerAttack();
+      endTurnCheck();
       render();
       return;
     }
@@ -363,6 +371,8 @@
       state.selected = null;
       finishPlayerOperation();
       state.combo = 1;
+      state.busy = false;
+      maybeTriggerPlayerAttack();
       endTurnCheck();
     } catch (error) {
       console.error(error);
@@ -454,9 +464,9 @@
     let result = collectMatchResult();
     while (result.groups.length > 0) {
       const specialText = result.specials.length ? `，產生 ${result.specials.length} 個特殊方塊` : '';
-      setStatus(`消除 ${result.clearing.length} 個方塊${specialText}，效果已累積到本輪計時器。`);
+      setStatus(`消除 ${result.clearing.length} 個方塊${specialText}，效果已累積到本輪攻擊。`);
       result.specials.forEach(({ r, c, color, special }) => { state.board[r][c] = logic.createSpecialBlock(color, special); });
-      await clearCells(result.clearing, `消除 ${result.clearing.length} 個方塊${specialText}，效果已累積到本輪計時器。`);
+      await clearCells(result.clearing, `消除 ${result.clearing.length} 個方塊${specialText}，效果已累積到本輪攻擊。`);
       result = collectMatchResult();
     }
   }
@@ -468,7 +478,7 @@
       state.board = logic.shuffleBoard(state.board);
       setStatus('棋盤沒有可走步了，已自動重排。');
     } else {
-      setStatus('請繼續交換相鄰方塊並累積攻擊、防禦、法術與回血。');
+      setStatus('請繼續交換相鄰方塊；攻擊累積滿 10 個方塊後才會出手。');
     }
   }
 

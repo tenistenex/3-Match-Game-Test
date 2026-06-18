@@ -17,21 +17,22 @@
       const defense = state.roundStats.defense * state.defenseMultiplier;
       const magic = state.roundStats.spell * 10;
       const heal = state.roundStats.heal;
-      const attackMeterMax = Math.max(100, state.enemyMaxHp);
+      const attackThreshold = state.playerAttackThreshold || 10;
+      const attackMeterMax = Math.max(attackThreshold, state.enemyMaxHp);
       const defenseMeterMax = Math.max(100, state.enemyAttackPower);
       const healMeterMax = Math.max(100, state.playerMaxHp - state.playerHp);
 
-      const playerCountdown = formatCountdown(state.nextPlayerAttackAt, state.attackInterval);
+      const playerCountdown = state.roundStats.attack >= attackThreshold ? '準備攻擊' : `${formatNumber(state.roundStats.attack)} / ${formatNumber(attackThreshold)}`;
       const enemyCountdown = formatCountdown(state.nextEnemyAttackAt, state.enemyInterval);
       $('playerHpText').textContent = `${formatNumber(state.playerHp)} / ${formatNumber(state.playerMaxHp)}`;
       $('enemyHpText').textContent = `${formatNumber(state.enemyHp)} / ${formatNumber(state.enemyMaxHp)}`;
       setBar('playerHpBar', state.playerHp, state.playerMaxHp);
       setBar('enemyHpBar', state.enemyHp, state.enemyMaxHp);
-      setBar('playerAttackBar', countdownProgress(state.nextPlayerAttackAt, state.attackInterval));
+      setBar('playerAttackBar', state.roundStats.attack, attackThreshold);
       setBar('enemyAttackBar', countdownProgress(state.nextEnemyAttackAt, state.enemyInterval));
       $('playerStageAttackCountdown').textContent = playerCountdown;
       $('enemyStageAttackCountdown').textContent = enemyCountdown;
-      setBar('playerStageAttackBar', countdownProgress(state.nextPlayerAttackAt, state.attackInterval));
+      setBar('playerStageAttackBar', state.roundStats.attack, attackThreshold);
       setBar('enemyStageAttackBar', countdownProgress(state.nextEnemyAttackAt, state.enemyInterval));
       $('attackValue').textContent = `${formatNumber(attack)} / ${formatNumber(attackMeterMax)}`;
       $('defenseValue').textContent = `${formatNumber(defense)} / ${formatNumber(defenseMeterMax)}`;
@@ -140,7 +141,7 @@
       $('combo').textContent = `連擊 ${state.lastComboCount}（目前 x${state.combo}）`;
       $('playerHp').textContent = `${formatNumber(state.playerHp)}/${formatNumber(state.playerMaxHp)}`;
       $('enemyHp').textContent = `${formatNumber(state.enemyHp)}/${formatNumber(state.enemyMaxHp)}`;
-      $('playerAttackCountdown').textContent = formatCountdown(state.nextPlayerAttackAt, state.attackInterval);
+      $('playerAttackCountdown').textContent = state.roundStats.attack >= (state.playerAttackThreshold || 10) ? '準備攻擊' : `${formatNumber(state.roundStats.attack)} / ${formatNumber(state.playerAttackThreshold || 10)}`;
       $('enemyAttackCountdown').textContent = formatCountdown(state.nextEnemyAttackAt, state.enemyInterval);
       $('roundAttack').textContent = state.roundStats.attack;
       $('roundDefense').textContent = state.roundStats.defense;

@@ -178,7 +178,7 @@ function assertBoardPanelRendered(elements, expectedSize, message) {
   const specialActivation = context.window.Match3Game.handleCellClick({ r: 0, c: 0 });
   assert.equal(elements.board.children[0].style['--clear-duration'], '17ms', 'per-block clear speed should be applied to clearing cells');
   await specialActivation;
-  assert.ok(Number(elements.roundAttack.textContent) > 0, 'activated special blocks should accumulate cleared block effects');
+  assertBoardPanelRendered(elements, 6, 'after activating a special block');
   context.window.Match3Config.BLOCK_TYPES[0].clearSpeed = 260;
 
   elements.resetButton.click();
@@ -189,11 +189,14 @@ function assertBoardPanelRendered(elements, expectedSize, message) {
   context.window.Match3Game.state.playerHp = 110;
   context.window.Match3Game.state.enemyMaxHp = 150;
   context.window.Match3Game.state.enemyHp = 150;
+  assert.equal(context.window.Match3Game.playerAttack(), false, 'player attack should wait until 10 attack blocks are accumulated');
+  assert.equal(context.window.Match3Game.state.enemyHp, 150, 'player attack should not damage the enemy below the threshold');
+  context.window.Match3Game.state.roundStats.attack = 10;
   context.window.Match3Game.playerAttack();
-  assert.equal(context.window.Match3Game.state.enemyHp, 133.06, 'player attack should apply attack blocks times 1.1^combo times attack power');
+  assert.equal(context.window.Match3Game.state.enemyHp, 125.8, 'player attack should apply attack blocks times 1.1^combo times attack power once threshold is reached');
   assert.equal(context.window.Match3Game.state.playerHp, 115, 'player attack should apply accumulated healing to the hero');
   assert.equal(context.window.Match3Game.state.damagePopups[0].target, 'enemy', 'player attack damage popup should appear over the enemy');
-  assert.equal(context.window.Match3Game.state.damagePopups[0].text, '-16.9', 'player attack should create a damage number popup');
+  assert.equal(context.window.Match3Game.state.damagePopups[0].text, '-24.2', 'player attack should create a damage number popup');
   assert.equal(context.window.Match3Game.state.damagePopups[1].target, 'hero', 'healing popup should appear over the hero');
   assert.equal(context.window.Match3Game.state.damagePopups[1].text, '+5', 'player attack should create a heal number popup');
 
