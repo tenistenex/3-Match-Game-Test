@@ -18,14 +18,56 @@
   function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
   function sleepMsFromSeconds(seconds) { return Math.max(1, Number(seconds)) * 1000; }
   function formatNumber(value) { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
-  function pick(items) { return items[Math.floor(Math.random() * items.length)]; }
-
-  const ENEMY_POOL = [
-    { name: '史萊姆', hp: 70, attack: 8 },
-    { name: '骷髏兵', hp: 90, attack: 11 },
-    { name: '火焰小鬼', hp: 80, attack: 14 },
-    { name: '石像守衛', hp: 115, attack: 10 },
+  const DEFAULT_BLOCK_WEIGHTS = BLOCK_TYPES.map(type => type.weight);
+  const LINEAR_LEVELS = [
+    {
+      id: 1, name: '史萊姆訓練', type: 'battle', boardSize: 6, colorCount: 3, moves: 15,
+      lesson: '教學：消除攻擊方塊來打倒敵人。',
+      enemy: { name: '史萊姆', hp: 40, attack: 0, attackInterval: 999 },
+      blockWeights: { attack: 45, defense: 25, spell: 15, heal: 15 },
+      goalText: '目標：擊敗史萊姆'
+    },
+    {
+      id: 2, name: '骷髏兵來襲', type: 'battle', boardSize: 7, colorCount: 4, moves: 25,
+      lesson: '教學：累積防禦，抵擋敵人的明顯攻擊。',
+      enemy: { name: '骷髏兵', hp: 90, attack: 16, attackInterval: 4 },
+      blockWeights: { attack: 30, defense: 45, spell: 15, heal: 10 },
+      goalText: '目標：擊敗骷髏兵'
+    },
+    {
+      id: 3, name: '魔法水晶', type: 'battle', boardSize: 7, colorCount: 4, moves: 25,
+      lesson: '教學：累積法術後按下魔法，下一次攻擊會變成 2 倍。',
+      enemy: { name: '水晶怪', hp: 140, attack: 8, attackInterval: 6 },
+      blockWeights: { attack: 30, defense: 20, spell: 40, heal: 10 },
+      goalText: '建議：至少使用 1 次魔法'
+    },
+    {
+      id: 4, name: '毒菇森林', type: 'battle', boardSize: 8, colorCount: 4, moves: 30,
+      lesson: '教學：敵人高頻小傷害，回血方塊會變重要。',
+      enemy: { name: '毒菇', hp: 120, attack: 7, attackInterval: 2.5 },
+      blockWeights: { attack: 30, defense: 20, spell: 15, heal: 35 },
+      goalText: '目標：在頻繁攻擊下存活並擊敗毒菇'
+    },
+    {
+      id: 5, name: '石像守衛', type: 'battle', boardSize: 8, colorCount: 5, moves: 30,
+      lesson: '教學：高血量敵人，請嘗試 4 消、5 消與特殊方塊。',
+      enemy: { name: '石像守衛', hp: 220, attack: 12, attackInterval: 5 },
+      blockWeights: { attack: 35, defense: 25, spell: 25, heal: 15, fire: 1 },
+      goalText: '建議：製造特殊方塊'
+    },
+    {
+      id: 6, name: '哥布林王', type: 'boss', boardSize: 8, colorCount: 5, moves: 35,
+      lesson: 'Boss：血量降低後攻擊節奏會變快。',
+      enemy: { name: '哥布林王', hp: 300, attack: 15, attackInterval: 5 },
+      phases: [
+        { hpBelowPercent: 70, enemyAttackInterval: 4, message: 'Boss 進入第二階段：攻擊速度變快！' },
+        { hpBelowPercent: 40, enemyAttackInterval: 3, message: 'Boss 進入狂暴階段：攻擊速度大幅提升！' }
+      ],
+      blockWeights: { attack: 35, defense: 30, spell: 20, heal: 15, fire: 1 },
+      goalText: '目標：擊敗哥布林王'
+    }
   ];
+
   const EQUIPMENT_SHOP = [
     { slot: 'weapon', name: '鐵劍', attack: 0.4, price: 20 },
     { slot: 'armor', name: '鎖子甲', defense: 0.5, price: 20 },
@@ -49,17 +91,14 @@
     };
   }
 
-  function generateNode(level) {
-    const type = level === 1 ? 'battle' : pick(['battle', 'battle', 'shop', 'rest']);
-    if (type === 'battle') {
-      const base = pick(ENEMY_POOL);
-      return { type, name: base.name, hp: base.hp + (level - 1) * 30 + Math.floor(Math.random() * 21), attack: base.attack + (level - 1) * 4 + Math.floor(Math.random() * 5) };
-    }
-    return type === 'shop' ? { type, name: '商店' } : { type, name: '營火休息' };
+  function levelToNode(level) {
+    const levelConfig = LINEAR_LEVELS[level - 1] || LINEAR_LEVELS[0];
+    return { ...levelConfig, enemy: { ...levelConfig.enemy }, phases: (levelConfig.phases || []).map(phase => ({ ...phase })), activePhaseIndex: -1 };
   }
 
   function createRoute() {
-    state.run.route = Array.from({ length: state.run.totalLevels }, (_, index) => generateNode(index + 1));
+    state.run.totalLevels = LINEAR_LEVELS.length;
+    state.run.route = LINEAR_LEVELS.map(level => levelToNode(level.id));
     state.run.level = 1;
     state.run.completed = false;
     state.run.currentNode = state.run.route[0];
@@ -176,6 +215,35 @@
     });
   }
 
+
+  function applyLevelBlockWeights(node) {
+    const weights = node && node.blockWeights ? node.blockWeights : null;
+    BLOCK_TYPES.forEach((type, index) => { type.weight = DEFAULT_BLOCK_WEIGHTS[index]; });
+    if (!weights) return;
+    const order = ['attack', 'defense', 'spell', 'heal', 'fire', 'nature', 'star'];
+    order.forEach((key, index) => {
+      if (weights[key] !== undefined && BLOCK_TYPES[index]) BLOCK_TYPES[index].weight = weights[key];
+    });
+  }
+
+  function applyBossPhaseIfNeeded() {
+    const node = state.run.currentNode;
+    if (!node || node.type !== 'boss' || !Array.isArray(node.phases) || state.ended) return;
+    const hpPercent = state.enemyMaxHp > 0 ? (state.enemyHp / state.enemyMaxHp) * 100 : 0;
+    node.phases.forEach((phase, index) => {
+      if (index <= node.activePhaseIndex || hpPercent >= phase.hpBelowPercent) return;
+      node.activePhaseIndex = index;
+      state.enemyInterval = phase.enemyAttackInterval;
+      if (state.startedAt) {
+        clearInterval(state.enemyTimerId);
+        state.enemyTimerId = setInterval(enemyAttack, sleepMsFromSeconds(state.enemyInterval));
+        state.nextEnemyAttackAt = Date.now() + sleepMsFromSeconds(state.enemyInterval);
+      }
+      state.lastAction = phase.message;
+      setStatus(phase.message);
+    });
+  }
+
   function useMagic() {
     if (state.ended || state.magicArmed || state.roundStats.spell < 5) return;
     state.roundStats.spell -= 5;
@@ -211,27 +279,22 @@
   function startNode(level = state.run.level) {
     stopTimers();
     state.run.level = level;
-    state.run.currentNode = state.run.route[level - 1] || generateNode(level);
-    const node = state.run.currentNode;
-    if (node.type === 'shop' || node.type === 'rest') {
-      state.ended = true;
-      render();
-      setStatus(node.type === 'shop' ? '抵達商店：可購買裝備，或直接前進。' : '抵達營火：可休息升級，或直接前進。');
-      return;
-    }
+    state.run.currentNode = state.run.route[level - 1] || levelToNode(level);
     resetGame();
-    setStatus(`第 ${state.run.level} 關戰鬥：${node.name} 出現了！擊敗後可前進。`);
+    const node = state.run.currentNode;
+    setStatus(`第 ${state.run.level} 關「${node.name}」：${node.lesson} ${node.goalText}。`);
   }
 
   function resetGame() {
     stopTimers();
-    const size = readIntegerInput('boardSize', state.size || 8, { min: 3, max: 12 });
-    const colorCount = readIntegerInput('colorCount', state.colorCount || 4, { min: 3, max: BLOCK_TYPES.length });
+    const node = state.run.currentNode || levelToNode(1);
+    const size = node.boardSize || readIntegerInput('boardSize', state.size || 8, { min: 3, max: 12 });
+    const colorCount = node.colorCount || readIntegerInput('colorCount', state.colorCount || 4, { min: 3, max: BLOCK_TYPES.length });
     const hero = heroDerivedStats();
-    const node = state.run.currentNode && state.run.currentNode.type === 'battle' ? state.run.currentNode : { hp: readIntegerInput('enemyMaxHpInput', state.enemyMaxHp || 100, { min: 1, max: 9999 }), attack: readNumberInput('enemyAttackPower', state.enemyAttackPower || 10, { min: 0, max: 9999 }) };
     const playerMaxHp = readIntegerInput('playerMaxHpInput', hero.maxHp, { min: 1, max: 9999 }) + hero.maxHp - 100;
-    const enemyMaxHp = node.hp;
-    Object.assign(state, { size, colorCount, fallSpeed: readNumberInput('fallSpeed', state.fallSpeed || 420, { min: 1, max: 5000 }), clearSpeed: readNumberInput('clearSpeed', state.clearSpeed || 260, { min: 1, max: 5000 }), attackInterval: readNumberInput('attackInterval', state.attackInterval || 5, { min: 1, max: 3600 }), enemyInterval: readNumberInput('enemyInterval', state.enemyInterval || 5, { min: 1, max: 3600 }), attackMultiplier: hero.attackMultiplier, defenseMultiplier: hero.defenseMultiplier, enemyAttackPower: node.attack, selected: null, busy: false, score: 0, moves: 30, combo: 1, currentTurnCombo: 0, lastComboCount: 0, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
+    const enemyMaxHp = node.enemy ? node.enemy.hp : readIntegerInput('enemyMaxHpInput', state.enemyMaxHp || 100, { min: 1, max: 9999 });
+    applyLevelBlockWeights(node);
+    Object.assign(state, { size, colorCount, fallSpeed: readNumberInput('fallSpeed', state.fallSpeed || 420, { min: 1, max: 5000 }), clearSpeed: readNumberInput('clearSpeed', state.clearSpeed || 260, { min: 1, max: 5000 }), attackInterval: readNumberInput('attackInterval', state.attackInterval || 5, { min: 1, max: 3600 }), enemyInterval: node.enemy ? node.enemy.attackInterval : readNumberInput('enemyInterval', state.enemyInterval || 5, { min: 1, max: 3600 }), attackMultiplier: hero.attackMultiplier, defenseMultiplier: hero.defenseMultiplier, enemyAttackPower: node.enemy ? node.enemy.attack : readNumberInput('enemyAttackPower', state.enemyAttackPower || 10, { min: 0, max: 9999 }), selected: null, busy: false, score: 0, moves: node.moves || 30, combo: 1, currentTurnCombo: 0, lastComboCount: 0, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
     resetRoundStats(state);
     state.board = logic.createBoard(state.size, state.colorCount);
     renderBlockSettings();
@@ -411,11 +474,11 @@
 
   function completeNode() {
     stopTimers();
-    state.run.gold += state.run.currentNode.type === 'battle' ? 15 + state.run.level * 5 : 0;
+    state.run.gold += state.run.currentNode.type === 'battle' || state.run.currentNode.type === 'boss' ? 15 + state.run.level * 5 : 0;
     if (state.run.level >= state.run.totalLevels) {
       state.run.completed = true;
       state.ended = true;
-      setStatus('恭喜通關 3 關！可以開始新的冒險路線。');
+      setStatus('恭喜通關 6 關 Demo！可以重新挑戰線性冒險。');
       render();
       return;
     }
@@ -463,7 +526,7 @@
   render = renderer.render;
   renderBattleStats = renderer.renderBattleStats;
 
-  const battle = window.Match3Battle.createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, formatNumber, onBattleWin: completeNode });
+  const battle = window.Match3Battle.createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, formatNumber, onBattleWin: completeNode, onAfterPlayerAttack: applyBossPhaseIfNeeded });
   playerAttack = battle.playerAttack;
   enemyAttack = battle.enemyAttack;
 
