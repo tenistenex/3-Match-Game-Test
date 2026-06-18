@@ -9,7 +9,7 @@
   function createRunState() {
     return {
       level: 1,
-      totalLevels: 3,
+      totalLevels: 6,
       gold: 35,
       character: {
         name: '冒險者',

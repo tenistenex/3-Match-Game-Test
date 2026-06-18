@@ -1,5 +1,5 @@
 (function (global) {
-  function createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, formatNumber, onBattleWin }) {
+  function createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, formatNumber, onBattleWin, onAfterPlayerAttack }) {
     function showDamagePopup(target, amount, kind = 'damage') {
       const id = `${Date.now()}-${Math.random()}`;
       const prefix = kind === 'heal' ? '+' : '-';
@@ -43,6 +43,7 @@
       state.magicArmed = false;
       state.nextPlayerAttackAt = Date.now() + sleepMsFromSeconds(state.attackInterval);
       flashActor('hero');
+      if (typeof onAfterPlayerAttack === 'function') onAfterPlayerAttack();
       checkBattleEnd();
     }
 
