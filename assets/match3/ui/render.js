@@ -17,21 +17,22 @@
       const defense = state.roundStats.defense * state.defenseMultiplier;
       const magic = state.roundStats.spell * 10;
       const heal = state.roundStats.heal;
-      const attackMeterMax = Math.max(100, state.enemyMaxHp);
+      const attackThreshold = state.playerAttackThreshold || 10;
+      const attackMeterMax = Math.max(attackThreshold, state.enemyMaxHp);
       const defenseMeterMax = Math.max(100, state.enemyAttackPower);
       const healMeterMax = Math.max(100, state.playerMaxHp - state.playerHp);
 
-      const playerCountdown = formatCountdown(state.nextPlayerAttackAt, state.attackInterval);
+      const playerCountdown = state.roundStats.attack >= attackThreshold ? '準備攻擊' : `${formatNumber(state.roundStats.attack)} / ${formatNumber(attackThreshold)}`;
       const enemyCountdown = formatCountdown(state.nextEnemyAttackAt, state.enemyInterval);
       $('playerHpText').textContent = `${formatNumber(state.playerHp)} / ${formatNumber(state.playerMaxHp)}`;
       $('enemyHpText').textContent = `${formatNumber(state.enemyHp)} / ${formatNumber(state.enemyMaxHp)}`;
       setBar('playerHpBar', state.playerHp, state.playerMaxHp);
       setBar('enemyHpBar', state.enemyHp, state.enemyMaxHp);
-      setBar('playerAttackBar', countdownProgress(state.nextPlayerAttackAt, state.attackInterval));
+      setBar('playerAttackBar', state.roundStats.attack, attackThreshold);
       setBar('enemyAttackBar', countdownProgress(state.nextEnemyAttackAt, state.enemyInterval));
       $('playerStageAttackCountdown').textContent = playerCountdown;
       $('enemyStageAttackCountdown').textContent = enemyCountdown;
-      setBar('playerStageAttackBar', countdownProgress(state.nextPlayerAttackAt, state.attackInterval));
+      setBar('playerStageAttackBar', state.roundStats.attack, attackThreshold);
       setBar('enemyStageAttackBar', countdownProgress(state.nextEnemyAttackAt, state.enemyInterval));
       $('attackValue').textContent = `${formatNumber(attack)} / ${formatNumber(attackMeterMax)}`;
       $('defenseValue').textContent = `${formatNumber(defense)} / ${formatNumber(defenseMeterMax)}`;
@@ -51,17 +52,20 @@
       if (!panel) return;
       const run = state.run;
       const node = run.currentNode || {};
-      const route = run.route.map((step, index) => `<span class="route-node ${index + 1 === run.level ? 'current' : ''} ${index + 1 < run.level ? 'done' : ''}">${index + 1}. ${step.type === 'battle' ? '戰鬥' : step.type === 'shop' ? '商店' : '休息'}</span>`).join('');
+      const route = run.route.map((step, index) => `<span class="route-node ${index + 1 === run.level ? 'current' : ''} ${index + 1 < run.level ? 'done' : ''}">${index + 1}. ${step.type === 'boss' ? 'Boss' : '戰鬥'}：${step.name}</span>`).join('');
       const gear = Object.entries(run.equipment).map(([slot, item]) => `<li>${slot}: ${item.name}</li>`).join('');
-      const actions = node.type === 'shop'
-        ? `<div class="run-actions">${equipmentShop.map((item, index) => `<button type="button" data-shop-index="${index}" ${run.gold < item.price ? 'disabled' : ''}>買 ${item.name}（${item.price} 金）</button>`).join('')}<button type="button" data-next-node>離開商店</button></div>`
-        : node.type === 'rest'
-          ? `<div class="run-actions"><button type="button" data-rest-upgrade>休息升級</button><button type="button" data-next-node>前往下一關</button></div>`
-          : run.completed ? `<div class="run-actions"><button type="button" data-new-run>開始新冒險</button></div>` : '';
+      const enemy = node.enemy || {};
+      const phases = Array.isArray(node.phases) && node.phases.length
+        ? `<p><strong>Boss 階段：</strong>${node.phases.map(phase => `HP ${phase.hpBelowPercent}% 以下 → ${phase.enemyAttackInterval}s 攻擊`).join('；')}</p>`
+        : '';
+      const actions = run.completed ? `<div class="run-actions"><button type="button" data-new-run>重新挑戰 Demo</button></div>` : '';
       panel.innerHTML = `
-        <h2>冒險路線</h2>
+        <h2>6 關線性 Demo</h2>
         <div class="route-list">${route}</div>
-        <p><strong>目前：</strong>第 ${run.level}/${run.totalLevels} 關 ${node.name || ''}${node.type === 'battle' ? `（HP ${node.hp} / 攻擊 ${node.attack}）` : ''}</p>
+        <p><strong>目前：</strong>第 ${run.level}/${run.totalLevels} 關「${node.name || ''}」${enemy.name ? ` vs ${enemy.name}（HP ${enemy.hp} / 攻擊 ${enemy.attack} / ${enemy.attackInterval}s）` : ''}</p>
+        <p><strong>關卡目標：</strong>${node.goalText || '擊敗敵人'}</p>
+        <p><strong>玩法提示：</strong>${node.lesson || '交換相鄰方塊形成三消。'}</p>
+        ${phases}
         <p><strong>${run.character.name}</strong> Lv.${run.character.level}｜金幣 ${run.gold}</p>
         <ul class="gear-list">${gear}</ul>
         ${actions}
@@ -81,6 +85,7 @@
       const falling = new Map((options.fallMoves || []).map(move => [key(move.to), move.distance]));
       const spawning = new Map((options.spawnMoves || []).map(move => [key(move.to), move.distance]));
       const hint = new Set(state.hint.map(key));
+      const locked = new Set((state.lockedCells || []));
       const boardEl = $('board');
       boardEl.style.setProperty('--board-size', state.size);
       boardEl.style.setProperty('--fall-duration', `${state.fallSpeed}ms`);
@@ -108,6 +113,11 @@
           div.innerHTML = `<span class="cell-icon" aria-hidden="true">${type.icon}</span>${specialIcon ? `<span class="special-icon" aria-hidden="true">${specialIcon}</span>` : ''}`;
           div.title = isSpecial ? `${type.name}特殊方塊：${specialIcon}` : type.name;
           div.addEventListener('click', () => onCellClick(pos));
+        }
+        if (locked.has(key(pos))) {
+          div.classList.add('locked');
+          div.setAttribute('aria-label', `${div.attributes['aria-label']}（被封鎖）`);
+          div.title = `${div.title || '方塊'}（被封鎖：用特殊方塊或消除周圍解除）`;
         }
         if (state.selected && state.selected.r === r && state.selected.c === c) div.classList.add('selected');
         if (clearing.has(key(pos))) {
@@ -137,12 +147,15 @@
       $('combo').textContent = `連擊 ${state.lastComboCount}（目前 x${state.combo}）`;
       $('playerHp').textContent = `${formatNumber(state.playerHp)}/${formatNumber(state.playerMaxHp)}`;
       $('enemyHp').textContent = `${formatNumber(state.enemyHp)}/${formatNumber(state.enemyMaxHp)}`;
-      $('playerAttackCountdown').textContent = formatCountdown(state.nextPlayerAttackAt, state.attackInterval);
+      $('playerAttackCountdown').textContent = state.roundStats.attack >= (state.playerAttackThreshold || 10) ? '準備攻擊' : `${formatNumber(state.roundStats.attack)} / ${formatNumber(state.playerAttackThreshold || 10)}`;
       $('enemyAttackCountdown').textContent = formatCountdown(state.nextEnemyAttackAt, state.enemyInterval);
       $('roundAttack').textContent = state.roundStats.attack;
       $('roundDefense').textContent = state.roundStats.defense;
       $('roundSpell').textContent = state.roundStats.spell;
       $('roundHeal').textContent = state.roundStats.heal;
+      const lockedCount = (state.lockedCells || []).length;
+      const lockedCountEl = $('lockedCount');
+      if (lockedCountEl) lockedCountEl.textContent = lockedCount;
       $('battleLog').textContent = state.lastAction;
       const heroFighter = $('heroSprite').parentElement;
       const enemyFighter = $('enemySprite').parentElement;
