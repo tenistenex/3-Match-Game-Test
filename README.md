@@ -1,6 +1,12 @@
 # 3-Match Game Test
 
 This is a basic match-3 puzzle game. You can change how many colors appear, how big the board is, and how fast blocks fall and clear. If there are no more matches, the board shuffles itself. Open `match3.html` in your browser to play. 
+
+## Deployment
+
+GitHub Pages deployment is handled by `.github/workflows/deploy.yml`. The workflow deploys pushes from `main`, `master`, and the branch `docs/level-design-proposal`, so changes on `docs/level-design-proposal` can be published without waiting for a merge to `main`.
+
+In the repository settings, Pages should use **GitHub Actions** as the source. After a commit is pushed to `docs/level-design-proposal`, open the **Actions** tab and look for **Deploy static content to Pages**. The live URL is shown on the completed deployment job.
 test mr
 
 ## Baseline Snapshot Before Roguelite Layer
