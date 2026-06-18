@@ -51,17 +51,20 @@
       if (!panel) return;
       const run = state.run;
       const node = run.currentNode || {};
-      const route = run.route.map((step, index) => `<span class="route-node ${index + 1 === run.level ? 'current' : ''} ${index + 1 < run.level ? 'done' : ''}">${index + 1}. ${step.type === 'battle' ? '戰鬥' : step.type === 'shop' ? '商店' : '休息'}</span>`).join('');
+      const route = run.route.map((step, index) => `<span class="route-node ${index + 1 === run.level ? 'current' : ''} ${index + 1 < run.level ? 'done' : ''}">${index + 1}. ${step.type === 'boss' ? 'Boss' : '戰鬥'}：${step.name}</span>`).join('');
       const gear = Object.entries(run.equipment).map(([slot, item]) => `<li>${slot}: ${item.name}</li>`).join('');
-      const actions = node.type === 'shop'
-        ? `<div class="run-actions">${equipmentShop.map((item, index) => `<button type="button" data-shop-index="${index}" ${run.gold < item.price ? 'disabled' : ''}>買 ${item.name}（${item.price} 金）</button>`).join('')}<button type="button" data-next-node>離開商店</button></div>`
-        : node.type === 'rest'
-          ? `<div class="run-actions"><button type="button" data-rest-upgrade>休息升級</button><button type="button" data-next-node>前往下一關</button></div>`
-          : run.completed ? `<div class="run-actions"><button type="button" data-new-run>開始新冒險</button></div>` : '';
+      const enemy = node.enemy || {};
+      const phases = Array.isArray(node.phases) && node.phases.length
+        ? `<p><strong>Boss 階段：</strong>${node.phases.map(phase => `HP ${phase.hpBelowPercent}% 以下 → ${phase.enemyAttackInterval}s 攻擊`).join('；')}</p>`
+        : '';
+      const actions = run.completed ? `<div class="run-actions"><button type="button" data-new-run>重新挑戰 Demo</button></div>` : '';
       panel.innerHTML = `
-        <h2>冒險路線</h2>
+        <h2>6 關線性 Demo</h2>
         <div class="route-list">${route}</div>
-        <p><strong>目前：</strong>第 ${run.level}/${run.totalLevels} 關 ${node.name || ''}${node.type === 'battle' ? `（HP ${node.hp} / 攻擊 ${node.attack}）` : ''}</p>
+        <p><strong>目前：</strong>第 ${run.level}/${run.totalLevels} 關「${node.name || ''}」${enemy.name ? ` vs ${enemy.name}（HP ${enemy.hp} / 攻擊 ${enemy.attack} / ${enemy.attackInterval}s）` : ''}</p>
+        <p><strong>關卡目標：</strong>${node.goalText || '擊敗敵人'}</p>
+        <p><strong>玩法提示：</strong>${node.lesson || '交換相鄰方塊形成三消。'}</p>
+        ${phases}
         <p><strong>${run.character.name}</strong> Lv.${run.character.level}｜金幣 ${run.gold}</p>
         <ul class="gear-list">${gear}</ul>
         ${actions}

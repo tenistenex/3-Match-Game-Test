@@ -1,18 +1,33 @@
-name: CI
+name: Match-3 CI
 
 on:
-  pull_request:
   push:
     branches:
       - main
+      - master
+      - work
+  pull_request:
+    branches:
+      - main
+      - master
+      - work
 
 jobs:
   test:
+    name: Test match-3 demo
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Run unit tests
-        run: npm test
+
+      - name: Run tests
+        run: node --test
+
+      - name: Check whitespace
+        run: git diff --check
