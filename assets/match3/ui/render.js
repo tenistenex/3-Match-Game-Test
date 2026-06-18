@@ -27,8 +27,6 @@
       $('enemyHpText').textContent = `${formatNumber(state.enemyHp)} / ${formatNumber(state.enemyMaxHp)}`;
       setBar('playerHpBar', state.playerHp, state.playerMaxHp);
       setBar('enemyHpBar', state.enemyHp, state.enemyMaxHp);
-      setBar('playerAttackBar', countdownProgress(state.nextPlayerAttackAt, state.attackInterval));
-      setBar('enemyAttackBar', countdownProgress(state.nextEnemyAttackAt, state.enemyInterval));
       $('playerStageAttackCountdown').textContent = playerCountdown;
       $('enemyStageAttackCountdown').textContent = enemyCountdown;
       setBar('playerStageAttackBar', countdownProgress(state.nextPlayerAttackAt, state.attackInterval));

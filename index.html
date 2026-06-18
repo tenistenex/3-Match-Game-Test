@@ -78,73 +78,60 @@
       <article><span>敵方攻擊</span><strong id="enemyAttackCountdown">--</strong></article>
     </section>
 
-    <section class="battle-panel" aria-label="戰鬥狀態">
-      <article class="fighter-card">
-        <div class="attack-countdown">
-          <span>下次攻擊</span>
-          <div class="bar"><span id="playerAttackBar"></span></div>
-        </div>
-        <div class="fighter-avatar">勇者</div>
-        <strong id="playerHpText">100 / 100</strong>
-        <div class="bar hp"><span id="playerHpBar"></span></div>
-      </article>
-      <article class="fighter-card enemy">
-        <div class="attack-countdown">
-          <span>下次攻擊</span>
-          <div class="bar"><span id="enemyAttackBar"></span></div>
-        </div>
-        <div class="fighter-avatar">魔王</div>
-        <strong id="enemyHpText">100 / 100</strong>
-        <div class="bar hp"><span id="enemyHpBar"></span></div>
-      </article>
-    </section>
-
     <section class="game-layout">
-      <aside class="panel accumulation-panel" aria-label="累積戰鬥效果">
-        <h2>累積效果</h2>
-        <div class="meter-row">
-          <span>攻擊</span>
-          <strong id="attackValue">0 / 100</strong>
-          <div class="bar"><span id="attackMeter"></span></div>
-        </div>
-        <div class="meter-row">
-          <span>防禦</span>
-          <strong id="defenseValue">0 / 100</strong>
-          <div class="bar"><span id="defenseMeter"></span></div>
-        </div>
-        <div class="meter-row">
-          <span>魔法</span>
-          <strong id="magicValue">0 / 100</strong>
-          <div class="bar"><span id="magicMeter"></span></div>
-        </div>
-        <div class="meter-row">
-          <span>回血</span>
-          <strong id="healValue">0 / 100</strong>
-          <div class="bar"><span id="healMeter"></span></div>
-        </div>
-        <button id="magicButton" type="button" class="magic-button">使用魔法（下次攻擊 x2）</button>
-        <p class="meter-note">魔法每 50 點可使用 1 次，最多累積 2 次。</p>
-      </aside>
       <div id="board" class="board" aria-label="三消遊戲棋盤"></div>
       <aside class="panel business-panel">
         <h2>戰鬥狀態</h2>
         <div class="battle-stage" aria-label="角色戰鬥展示">
           <div class="fighter hero-fighter">
-            <div class="stage-countdown" aria-label="我方下次攻擊倒數">
-              <strong id="playerStageAttackCountdown">--</strong>
-              <div class="bar"><span id="playerStageAttackBar"></span></div>
+            <div class="stage-hp" aria-label="我方血量">
+              <strong id="playerHpText">100 / 100</strong>
+              <div class="bar hp"><span id="playerHpBar"></span></div>
             </div>
             <div id="heroSprite" class="pixel-sprite hero-sprite" aria-label="我方像素角色"></div>
             <strong>我方</strong>
+            <div class="stage-countdown" aria-label="我方下次攻擊倒數">
+              <span>下次攻擊</span>
+              <strong id="playerStageAttackCountdown">--</strong>
+              <div class="bar"><span id="playerStageAttackBar"></span></div>
+            </div>
           </div>
           <div class="versus">VS</div>
           <div class="fighter enemy-fighter">
-            <div class="stage-countdown" aria-label="敵方下次攻擊倒數">
-              <strong id="enemyStageAttackCountdown">--</strong>
-              <div class="bar"><span id="enemyStageAttackBar"></span></div>
+            <div class="stage-hp" aria-label="敵方血量">
+              <strong id="enemyHpText">100 / 100</strong>
+              <div class="bar hp"><span id="enemyHpBar"></span></div>
             </div>
             <div id="enemySprite" class="pixel-sprite enemy-sprite" aria-label="敵方像素角色"></div>
             <strong>敵方</strong>
+            <div class="stage-countdown" aria-label="敵方下次攻擊倒數">
+              <span>下次攻擊</span>
+              <strong id="enemyStageAttackCountdown">--</strong>
+              <div class="bar"><span id="enemyStageAttackBar"></span></div>
+            </div>
+          </div>
+          <div class="stage-meters" aria-label="累積戰鬥效果">
+            <div class="mini-meter">
+              <span>⚔ 攻擊</span>
+              <strong id="attackValue">0 / 100</strong>
+              <div class="bar"><span id="attackMeter"></span></div>
+            </div>
+            <div class="mini-meter">
+              <span>🛡 防禦</span>
+              <strong id="defenseValue">0 / 100</strong>
+              <div class="bar"><span id="defenseMeter"></span></div>
+            </div>
+            <div class="mini-meter">
+              <span>✦ 魔法</span>
+              <strong id="magicValue">0 / 100</strong>
+              <div class="bar"><span id="magicMeter"></span></div>
+            </div>
+            <div class="mini-meter">
+              <span>❤ 回血</span>
+              <strong id="healValue">0 / 100</strong>
+              <div class="bar"><span id="healMeter"></span></div>
+            </div>
+            <button id="magicButton" type="button" class="magic-button">使用魔法（下次攻擊 x2）</button>
           </div>
         </div>
         <div class="effect-grid" aria-label="本輪累積效果">
