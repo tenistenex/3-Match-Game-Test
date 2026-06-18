@@ -1,5 +1,5 @@
 (function (global) {
-  function createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, formatNumber }) {
+  function createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, formatNumber, onBattleWin }) {
     function showDamagePopup(target, amount, kind = 'damage') {
       const id = `${Date.now()}-${Math.random()}`;
       const prefix = kind === 'heal' ? '+' : '-';
@@ -19,7 +19,7 @@
     }
 
     function checkBattleEnd() {
-      if (state.enemyHp <= 0) { state.ended = true; stopTimers(); setStatus('勝利！敵方血量歸零。'); }
+      if (state.enemyHp <= 0) { state.ended = true; stopTimers(); setStatus('勝利！敵方血量歸零。'); if (typeof onBattleWin === 'function') onBattleWin(); return; }
       if (state.playerHp <= 0) { state.ended = true; stopTimers(); setStatus('失敗！我方血量歸零。'); }
       render();
     }
