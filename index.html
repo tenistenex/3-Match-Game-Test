@@ -11,7 +11,7 @@
     <section class="hero">
       <p class="eyebrow">Match-3 Puzzle Game</p>
       <h1>三消爬塔冒險</h1>
-      <p class="subtitle">點選相鄰方塊交換並用三消進行戰鬥。現在加入 3 關冒險路線，途中可能遇到隨機敵人、商店或休息升級，裝備會影響角色基礎數值。</p>
+      <p class="subtitle">點選相鄰方塊交換並用三消進行戰鬥。敵人攻擊後可能封鎖方塊；用特殊方塊或消除旁邊方塊就能解除。</p>
     </section>
 
     <section class="panel controls" aria-label="遊戲設定">
@@ -74,9 +74,9 @@
       <article><span>步數</span><strong id="moves">30</strong></article>
       <article><span>時間</span><strong id="timer">00:00</strong></article>
       <article><span>連擊</span><strong id="combo">連擊 0</strong></article>
-      <article><span>我方血量</span><strong id="playerHp">100/100</strong></article>
-      <article><span>敵方血量</span><strong id="enemyHp">100/100</strong></article>
-      <article><span>我方攻擊累積</span><strong id="playerAttackCountdown">0 / 10</strong></article>
+      <article class="stat-compact"><span>我方血量</span><strong id="playerHp">100/100</strong></article>
+      <article class="stat-compact"><span>敵方血量</span><strong id="enemyHp">100/100</strong></article>
+      <article class="stat-compact"><span>我方攻擊累積</span><strong id="playerAttackCountdown">0 / 10</strong></article>
       <article><span>敵方攻擊</span><strong id="enemyAttackCountdown">--</strong></article>
     </section>
 
@@ -155,12 +155,14 @@
           <span>✦ 法術 <strong id="roundSpell">0</strong></span>
           <span>❤ 回血 <strong id="roundHeal">0</strong></span>
         </div>
+        <p class="locked-summary">🔒 封鎖方塊 <strong id="lockedCount">0</strong> 個</p>
         <ul>
           <li>預設方塊效果：攻擊、防禦、法術、回血。</li>
           <li>連擊數會記錄玩家最後一次操作後，總共觸發了幾次消除。</li>
           <li>提示按鈕會標出目前可交換、且交換後能形成三消的一組相鄰方塊。</li>
           <li>我方累積 10 個攻擊方塊才會攻擊；若還在連擊或方塊下落，會等整段消除結束後才出手。</li>
           <li>敵方攻擊時間到時，防禦會抵消敵方攻擊；每次敵方計時器重置後，累積防禦會砍半。</li>
+          <li>敵人攻擊會隨機封鎖方塊；被封鎖方塊不能交換，用特殊方塊或消除旁邊方塊可解除。</li>
         </ul>
         <p id="battleLog" class="battle-log">尚未攻擊。</p>
         <p id="status" class="status">請交換相鄰方塊開始遊戲。</p>

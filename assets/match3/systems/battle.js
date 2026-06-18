@@ -1,5 +1,5 @@
 (function (global) {
-  function createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, formatNumber, onBattleWin, onAfterPlayerAttack }) {
+  function createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, formatNumber, onBattleWin, onAfterPlayerAttack, onEnemyBoardLock }) {
     function showDamagePopup(target, amount, kind = 'damage') {
       const id = `${Date.now()}-${Math.random()}`;
       const prefix = kind === 'heal' ? '+' : '-';
@@ -40,6 +40,7 @@
       state.enemyHp = clamp(state.enemyHp - damage, 0, state.enemyMaxHp);
       state.playerHp = clamp(state.playerHp + heal, 0, state.playerMaxHp);
       const actualHeal = state.playerHp - playerHpBeforeHeal;
+      state.damagePopups = [];
       if (damage > 0) showDamagePopup('enemy', damage);
       if (actualHeal > 0) showDamagePopup('hero', actualHeal, 'heal');
       state.lastAction = `我方攻擊：攻擊方塊 ${formatNumber(state.roundStats.attack)} × 連擊倍率 1.1^${state.lastComboCount}（${formatNumber(comboMultiplier)}）× 攻擊力 ${formatNumber(state.attackMultiplier)}${state.magicArmed ? ' × 魔法 2' : ''} = ${formatNumber(damage)} 傷害，回血 ${formatNumber(actualHeal)}。防禦會保留並在敵方計時器重置時減半。`;
@@ -60,9 +61,11 @@
       const blocked = Math.min(state.enemyAttackPower, defenseBeforeDecay * state.defenseMultiplier);
       const damage = state.enemyAttackPower - blocked;
       state.playerHp = clamp(state.playerHp - damage, 0, state.playerMaxHp);
+      state.damagePopups = [];
       if (damage > 0) showDamagePopup('hero', damage);
       state.roundStats.defense = defenseBeforeDecay / 2;
       state.lastAction = `敵方攻擊 ${formatNumber(state.enemyAttackPower)}，防禦方塊抵擋 ${formatNumber(blocked)}，我方受到 ${formatNumber(damage)} 傷害。防禦半衰期：${formatNumber(defenseBeforeDecay)} → ${formatNumber(state.roundStats.defense)}。`;
+      if (typeof onEnemyBoardLock === 'function') onEnemyBoardLock();
       state.nextEnemyAttackAt = Date.now() + sleepMsFromSeconds(state.enemyInterval);
       flashActor('enemy');
       checkBattleEnd();
