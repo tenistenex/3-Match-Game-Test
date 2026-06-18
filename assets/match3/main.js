@@ -18,6 +18,52 @@
   function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
   function sleepMsFromSeconds(seconds) { return Math.max(1, Number(seconds)) * 1000; }
   function formatNumber(value) { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
+  function pick(items) { return items[Math.floor(Math.random() * items.length)]; }
+
+  const ENEMY_POOL = [
+    { name: '史萊姆', hp: 70, attack: 8 },
+    { name: '骷髏兵', hp: 90, attack: 11 },
+    { name: '火焰小鬼', hp: 80, attack: 14 },
+    { name: '石像守衛', hp: 115, attack: 10 },
+  ];
+  const EQUIPMENT_SHOP = [
+    { slot: 'weapon', name: '鐵劍', attack: 0.4, price: 20 },
+    { slot: 'armor', name: '鎖子甲', defense: 0.5, price: 20 },
+    { slot: 'charm', name: '生命護符', hp: 25, price: 18 },
+  ];
+
+  function equipmentTotals() {
+    return Object.values(state.run.equipment).reduce((total, item) => ({
+      hp: total.hp + (item.hp || 0),
+      attack: total.attack + (item.attack || 0),
+      defense: total.defense + (item.defense || 0),
+    }), { hp: 0, attack: 0, defense: 0 });
+  }
+
+  function heroDerivedStats() {
+    const gear = equipmentTotals();
+    return {
+      maxHp: 100 + state.run.character.maxHpBonus + gear.hp,
+      attackMultiplier: 1 + state.run.character.attackBonus + gear.attack,
+      defenseMultiplier: 1 + state.run.character.defenseBonus + gear.defense,
+    };
+  }
+
+  function generateNode(level) {
+    const type = level === 1 ? 'battle' : pick(['battle', 'battle', 'shop', 'rest']);
+    if (type === 'battle') {
+      const base = pick(ENEMY_POOL);
+      return { type, name: base.name, hp: base.hp + (level - 1) * 30 + Math.floor(Math.random() * 21), attack: base.attack + (level - 1) * 4 + Math.floor(Math.random() * 5) };
+    }
+    return type === 'shop' ? { type, name: '商店' } : { type, name: '營火休息' };
+  }
+
+  function createRoute() {
+    state.run.route = Array.from({ length: state.run.totalLevels }, (_, index) => generateNode(index + 1));
+    state.run.level = 1;
+    state.run.completed = false;
+    state.run.currentNode = state.run.route[0];
+  }
 
   function readNumberInput(id, fallback, { min = -Infinity, max = Infinity } = {}) {
     const raw = $(id).value;
@@ -162,13 +208,30 @@
     clearInterval(state.timerId); clearInterval(state.attackTimerId); clearInterval(state.enemyTimerId);
   }
 
+  function startNode(level = state.run.level) {
+    stopTimers();
+    state.run.level = level;
+    state.run.currentNode = state.run.route[level - 1] || generateNode(level);
+    const node = state.run.currentNode;
+    if (node.type === 'shop' || node.type === 'rest') {
+      state.ended = true;
+      render();
+      setStatus(node.type === 'shop' ? '抵達商店：可購買裝備，或直接前進。' : '抵達營火：可休息升級，或直接前進。');
+      return;
+    }
+    resetGame();
+    setStatus(`第 ${state.run.level} 關戰鬥：${node.name} 出現了！擊敗後可前進。`);
+  }
+
   function resetGame() {
     stopTimers();
     const size = readIntegerInput('boardSize', state.size || 8, { min: 3, max: 12 });
     const colorCount = readIntegerInput('colorCount', state.colorCount || 4, { min: 3, max: BLOCK_TYPES.length });
-    const playerMaxHp = readIntegerInput('playerMaxHpInput', state.playerMaxHp || 100, { min: 1, max: 9999 });
-    const enemyMaxHp = readIntegerInput('enemyMaxHpInput', state.enemyMaxHp || 100, { min: 1, max: 9999 });
-    Object.assign(state, { size, colorCount, fallSpeed: readNumberInput('fallSpeed', state.fallSpeed || 420, { min: 1, max: 5000 }), clearSpeed: readNumberInput('clearSpeed', state.clearSpeed || 260, { min: 1, max: 5000 }), attackInterval: readNumberInput('attackInterval', state.attackInterval || 5, { min: 1, max: 3600 }), enemyInterval: readNumberInput('enemyInterval', state.enemyInterval || 5, { min: 1, max: 3600 }), attackMultiplier: readNumberInput('attackMultiplier', state.attackMultiplier || 1, { min: 0, max: 999 }), defenseMultiplier: readNumberInput('defenseMultiplier', state.defenseMultiplier || 1, { min: 0, max: 999 }), enemyAttackPower: readNumberInput('enemyAttackPower', state.enemyAttackPower || 10, { min: 0, max: 9999 }), selected: null, busy: false, score: 0, moves: 30, combo: 1, currentTurnCombo: 0, lastComboCount: 0, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
+    const hero = heroDerivedStats();
+    const node = state.run.currentNode && state.run.currentNode.type === 'battle' ? state.run.currentNode : { hp: readIntegerInput('enemyMaxHpInput', state.enemyMaxHp || 100, { min: 1, max: 9999 }), attack: readNumberInput('enemyAttackPower', state.enemyAttackPower || 10, { min: 0, max: 9999 }) };
+    const playerMaxHp = readIntegerInput('playerMaxHpInput', hero.maxHp, { min: 1, max: 9999 }) + hero.maxHp - 100;
+    const enemyMaxHp = node.hp;
+    Object.assign(state, { size, colorCount, fallSpeed: readNumberInput('fallSpeed', state.fallSpeed || 420, { min: 1, max: 5000 }), clearSpeed: readNumberInput('clearSpeed', state.clearSpeed || 260, { min: 1, max: 5000 }), attackInterval: readNumberInput('attackInterval', state.attackInterval || 5, { min: 1, max: 3600 }), enemyInterval: readNumberInput('enemyInterval', state.enemyInterval || 5, { min: 1, max: 3600 }), attackMultiplier: hero.attackMultiplier, defenseMultiplier: hero.defenseMultiplier, enemyAttackPower: node.attack, selected: null, busy: false, score: 0, moves: 30, combo: 1, currentTurnCombo: 0, lastComboCount: 0, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
     resetRoundStats(state);
     state.board = logic.createBoard(state.size, state.colorCount);
     renderBlockSettings();
@@ -346,6 +409,43 @@
     }
   }
 
+  function completeNode() {
+    stopTimers();
+    state.run.gold += state.run.currentNode.type === 'battle' ? 15 + state.run.level * 5 : 0;
+    if (state.run.level >= state.run.totalLevels) {
+      state.run.completed = true;
+      state.ended = true;
+      setStatus('恭喜通關 3 關！可以開始新的冒險路線。');
+      render();
+      return;
+    }
+    startNode(state.run.level + 1);
+  }
+
+  function buyEquipment(index) {
+    const item = EQUIPMENT_SHOP[index];
+    if (!item || state.run.gold < item.price) return;
+    state.run.gold -= item.price;
+    state.run.equipment[item.slot] = item;
+    setStatus(`購買並裝備 ${item.name}。`);
+    render();
+  }
+
+  function restUpgrade() {
+    state.run.character.level++;
+    state.run.character.maxHpBonus += 20;
+    state.run.character.attackBonus += 0.1;
+    state.playerHp = heroDerivedStats().maxHp;
+    setStatus('營火休息：角色升級，生命與攻擊提升。');
+    render();
+  }
+
+  function newRun() {
+    state.run = window.Match3State.createRunState();
+    createRoute();
+    startNode(1);
+  }
+
   function showHint() {
     if (state.busy || state.ended) return;
     const move = logic.findAvailableMove(state.board);
@@ -357,11 +457,13 @@
 
   applyDebugOptionVisibility();
 
-  const renderer = window.Match3Renderer.createRenderer({ state, blockType, formatCountdown, countdownProgress, onCellClick: handleCellClick });
+  createRoute();
+
+  const renderer = window.Match3Renderer.createRenderer({ state, blockType, formatCountdown, countdownProgress, onCellClick: handleCellClick, onNextNode: completeNode, onBuyEquipment: buyEquipment, onRestUpgrade: restUpgrade, onNewRun: newRun, equipmentShop: EQUIPMENT_SHOP });
   render = renderer.render;
   renderBattleStats = renderer.renderBattleStats;
 
-  const battle = window.Match3Battle.createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, formatNumber });
+  const battle = window.Match3Battle.createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, formatNumber, onBattleWin: completeNode });
   playerAttack = battle.playerAttack;
   enemyAttack = battle.enemyAttack;
 
@@ -373,7 +475,7 @@
   $('resetButton').addEventListener('click', resetGame);
   $('hintButton').addEventListener('click', showHint);
   $('magicButton').addEventListener('click', useMagic);
-  resetGame();
+  startNode(1);
 
-  window.Match3Game = { state, resetGame, handleCellClick, resolveMatches, playerAttack, enemyAttack, showDebugOptions };
+  window.Match3Game = { state, resetGame, handleCellClick, resolveMatches, playerAttack, enemyAttack, showDebugOptions, completeNode, newRun };
 })();

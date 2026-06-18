@@ -11,7 +11,7 @@
     return parseFloat(root.getPropertyValue('--cell-size')) + parseFloat(root.getPropertyValue('--gap'));
   }
 
-  function createRenderer({ state, blockType, formatCountdown, countdownProgress, onCellClick }) {
+  function createRenderer({ state, blockType, formatCountdown, countdownProgress, onCellClick, onNextNode, onBuyEquipment, onRestUpgrade, onNewRun, equipmentShop = [] }) {
     function renderBattleStats() {
       const attack = state.roundStats.attack * state.attackMultiplier;
       const defense = state.roundStats.defense * state.defenseMultiplier;
@@ -43,6 +43,37 @@
       setBar('healMeter', heal, healMeterMax);
       $('magicButton').disabled = state.ended || state.magicArmed || state.roundStats.spell < 5;
       $('magicButton').textContent = state.magicArmed ? '魔法已準備：下次攻擊 x2' : '使用魔法（消耗 5 法術，下次攻擊 x2）';
+    }
+
+
+    function renderRunPanel() {
+      const panel = $('runPanel');
+      if (!panel) return;
+      const run = state.run;
+      const node = run.currentNode || {};
+      const route = run.route.map((step, index) => `<span class="route-node ${index + 1 === run.level ? 'current' : ''} ${index + 1 < run.level ? 'done' : ''}">${index + 1}. ${step.type === 'battle' ? '戰鬥' : step.type === 'shop' ? '商店' : '休息'}</span>`).join('');
+      const gear = Object.entries(run.equipment).map(([slot, item]) => `<li>${slot}: ${item.name}</li>`).join('');
+      const actions = node.type === 'shop'
+        ? `<div class="run-actions">${equipmentShop.map((item, index) => `<button type="button" data-shop-index="${index}" ${run.gold < item.price ? 'disabled' : ''}>買 ${item.name}（${item.price} 金）</button>`).join('')}<button type="button" data-next-node>離開商店</button></div>`
+        : node.type === 'rest'
+          ? `<div class="run-actions"><button type="button" data-rest-upgrade>休息升級</button><button type="button" data-next-node>前往下一關</button></div>`
+          : run.completed ? `<div class="run-actions"><button type="button" data-new-run>開始新冒險</button></div>` : '';
+      panel.innerHTML = `
+        <h2>冒險路線</h2>
+        <div class="route-list">${route}</div>
+        <p><strong>目前：</strong>第 ${run.level}/${run.totalLevels} 關 ${node.name || ''}${node.type === 'battle' ? `（HP ${node.hp} / 攻擊 ${node.attack}）` : ''}</p>
+        <p><strong>${run.character.name}</strong> Lv.${run.character.level}｜金幣 ${run.gold}</p>
+        <ul class="gear-list">${gear}</ul>
+        ${actions}
+      `;
+      if (!panel.querySelector) return;
+      panel.querySelectorAll('[data-shop-index]').forEach(button => button.addEventListener('click', event => onBuyEquipment(Number(event.target.dataset.shopIndex))));
+      const next = panel.querySelector('[data-next-node]');
+      if (next) next.addEventListener('click', onNextNode);
+      const rest = panel.querySelector('[data-rest-upgrade]');
+      if (rest) rest.addEventListener('click', onRestUpgrade);
+      const newRun = panel.querySelector('[data-new-run]');
+      if (newRun) newRun.addEventListener('click', onNewRun);
     }
 
     function render(options = {}) {
@@ -131,6 +162,7 @@
       $('hintButton').disabled = state.busy || state.ended;
       $('resetButton').disabled = state.busy;
       renderBattleStats();
+      renderRunPanel();
     }
 
     return { render, renderBattleStats };

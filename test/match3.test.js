@@ -103,9 +103,10 @@ function assertBoardPanelRendered(elements, expectedSize, message) {
   const { context, elements, scriptFiles } = createHarness();
 
   assertBoardPanelRendered(elements, 8, 'initial load');
-  assert.equal(elements.status.textContent, '請交換相鄰方塊開始遊戲。');
+  assert.match(elements.status.textContent, /第 1 關戰鬥：.+出現了！擊敗後可前進。/);
   assert.equal(elements.playerHp.textContent, '120/120');
-  assert.equal(elements.enemyHp.textContent, '150/150');
+  assert.match(elements.enemyHp.textContent, /\d+\/\d+/);
+  assert.match(elements.runPanel.innerHTML, /冒險路線/);
   assert.equal(elements.moves.textContent, 30);
   assert.equal(elements.healValue.textContent, '0 / 100', 'heal should have an accumulation meter');
   assert.equal(context.window.Match3Game.showDebugOptions, false, 'debug option controls should be hidden by default');
@@ -188,6 +189,8 @@ function assertBoardPanelRendered(elements, expectedSize, message) {
   context.window.Match3Game.state.attackMultiplier = 2;
   context.window.Match3Game.state.lastComboCount = 2;
   context.window.Match3Game.state.playerHp = 110;
+  context.window.Match3Game.state.enemyMaxHp = 150;
+  context.window.Match3Game.state.enemyHp = 150;
   context.window.Match3Game.playerAttack();
   assert.equal(context.window.Match3Game.state.enemyHp, 133.06, 'player attack should apply attack blocks times 1.1^combo times attack power');
   assert.equal(context.window.Match3Game.state.playerHp, 115, 'player attack should apply accumulated healing to the hero');

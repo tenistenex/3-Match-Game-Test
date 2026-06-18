@@ -120,3 +120,13 @@ button:disabled { opacity: .55; cursor: not-allowed; }
   to { opacity: 0; transform: translate(-50%, -34px) scale(1); }
 }
 .fighter { position: relative; }
+.run-panel { margin-bottom: 16px; padding: 16px; }
+.run-panel h2 { margin: 0 0 10px; }
+.route-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.route-node { padding: 8px 10px; border-radius: 999px; background: #e2e8f0; color: #475569; font-weight: 800; }
+.route-node.current { background: #fef3c7; color: #92400e; box-shadow: 0 0 0 3px rgba(250,204,21,.35); }
+.route-node.done { background: #dcfce7; color: #166534; }
+.gear-list { display: flex; flex-wrap: wrap; gap: 8px 16px; padding-left: 18px; }
+.run-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.run-actions button { background: #7c3aed; }
+.run-actions button[data-next-node] { background: #2563eb; }
