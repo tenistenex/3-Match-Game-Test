@@ -149,6 +149,37 @@
   }
 
   function posKey(pos) { return `${pos.r},${pos.c}`; }
+  function isLocked(pos) { return state.lockedCells.includes(posKey(pos)); }
+  function setLockedCells(cells) { state.lockedCells = Array.from(new Set(cells.map(posKey))); }
+  function unlockCells(cells) {
+    if (!state.lockedCells.length || !cells.length) return 0;
+    const unlock = new Set(cells.map(posKey));
+    const before = state.lockedCells.length;
+    state.lockedCells = state.lockedCells.filter(key => !unlock.has(key));
+    return before - state.lockedCells.length;
+  }
+  function adjacentCells(pos) {
+    return [{ r: pos.r - 1, c: pos.c }, { r: pos.r + 1, c: pos.c }, { r: pos.r, c: pos.c - 1 }, { r: pos.r, c: pos.c + 1 }]
+      .filter(cell => cell.r >= 0 && cell.c >= 0 && cell.r < state.size && cell.c < state.size);
+  }
+  function unlockAround(cells) {
+    const targets = [];
+    cells.forEach(cell => adjacentCells(cell).forEach(next => targets.push(next)));
+    return unlockCells(targets);
+  }
+  function findAvailableUnlockedMove() {
+    for (let r = 0; r < state.size; r++) {
+      for (let c = 0; c < state.size; c++) {
+        const first = { r, c };
+        if (isLocked(first)) continue;
+        for (const second of [{ r: r + 1, c }, { r, c: c + 1 }]) {
+          if (second.r >= state.size || second.c >= state.size || isLocked(second)) continue;
+          if (logic.findMatches(logic.swap(state.board, first, second)).length > 0) return [first, second];
+        }
+      }
+    }
+    return null;
+  }
 
   function specialName(special) {
     return special === 'line-row' ? '橫列消除' : special === 'line-column' ? '直行消除' : special === 'bomb' ? '九宮格爆炸' : '同色全消';
@@ -300,7 +331,7 @@
     const playerMaxHp = readIntegerInput('playerMaxHpInput', hero.maxHp, { min: 1, max: 9999 }) + hero.maxHp - 100;
     const enemyMaxHp = node.enemy ? node.enemy.hp : readIntegerInput('enemyMaxHpInput', state.enemyMaxHp || 100, { min: 1, max: 9999 });
     applyLevelBlockWeights(node);
-    Object.assign(state, { size, colorCount, fallSpeed: readNumberInput('fallSpeed', state.fallSpeed || 420, { min: 1, max: 5000 }), clearSpeed: readNumberInput('clearSpeed', state.clearSpeed || 260, { min: 1, max: 5000 }), attackInterval: readNumberInput('attackInterval', state.attackInterval || 5, { min: 1, max: 3600 }), enemyInterval: node.enemy ? node.enemy.attackInterval : readNumberInput('enemyInterval', state.enemyInterval || 5, { min: 1, max: 3600 }), attackMultiplier: hero.attackMultiplier, defenseMultiplier: hero.defenseMultiplier, enemyAttackPower: node.enemy ? node.enemy.attack : readNumberInput('enemyAttackPower', state.enemyAttackPower || 10, { min: 0, max: 9999 }), selected: null, busy: false, score: 0, moves: node.moves || 30, combo: 1, currentTurnCombo: 0, lastComboCount: 0, playerAttackThreshold: 10, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，敵方攻擊計時器會開始；我方累積 10 個攻擊方塊後出手。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
+    Object.assign(state, { size, colorCount, fallSpeed: readNumberInput('fallSpeed', state.fallSpeed || 420, { min: 1, max: 5000 }), clearSpeed: readNumberInput('clearSpeed', state.clearSpeed || 260, { min: 1, max: 5000 }), attackInterval: readNumberInput('attackInterval', state.attackInterval || 5, { min: 1, max: 3600 }), enemyInterval: node.enemy ? node.enemy.attackInterval : readNumberInput('enemyInterval', state.enemyInterval || 5, { min: 1, max: 3600 }), attackMultiplier: hero.attackMultiplier, defenseMultiplier: hero.defenseMultiplier, enemyAttackPower: node.enemy ? node.enemy.attack : readNumberInput('enemyAttackPower', state.enemyAttackPower || 10, { min: 0, max: 9999 }), selected: null, busy: false, score: 0, moves: node.moves || 30, combo: 1, currentTurnCombo: 0, lastComboCount: 0, playerAttackThreshold: 10, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，敵方攻擊計時器會開始；我方累積 10 個攻擊方塊後出手。', heroAction: false, enemyAction: false, ended: false, magicArmed: false, lockedCells: [] });
     resetRoundStats(state);
     state.board = logic.createBoard(state.size, state.colorCount);
     renderBlockSettings();
@@ -314,6 +345,7 @@
     if (state.busy || state.moves <= 0 || state.ended) return;
     state.hint = [];
     const clickedBlock = state.board[pos.r][pos.c];
+    if (isLocked(pos)) { setStatus('這個方塊被敵人封鎖，需用特殊方塊或消除旁邊方塊解除。'); return; }
     if (!state.selected && logic.isSpecialBlock(clickedBlock)) {
       startTimers();
       beginPlayerOperation();
@@ -330,6 +362,7 @@
     }
     if (!state.selected) { state.selected = pos; render(); return; }
     if (!logic.areAdjacent(state.selected, pos)) { state.selected = pos; render(); return; }
+    if (isLocked(state.selected) || isLocked(pos)) { state.selected = null; setStatus('被封鎖的方塊不能交換。'); render(); return; }
 
     const selectedBlock = state.board[state.selected.r][state.selected.c];
     if (logic.isSpecialBlock(selectedBlock) && logic.isSpecialBlock(clickedBlock)) {
@@ -405,12 +438,16 @@
     const waitMs = cells.reduce((duration, { r, c }) => Math.max(duration, blockClearSpeed(state.board[r][c])), state.clearSpeed);
     render({ clearing: cells });
     await sleep(waitMs);
+    const lockedBeforeClear = new Set(state.lockedCells || []);
+    const unlockedBySpecial = unlockCells(cells);
     cells.forEach(({ r, c }) => {
-      if (state.board[r][c] === null) return;
+      if (state.board[r][c] === null || lockedBeforeClear.has(posKey({ r, c }))) return;
       const type = blockType(logic.colorOf(state.board[r][c]));
       state.roundStats[type.stat] += 1;
       state.board[r][c] = null;
     });
+    const unlockedAround = unlockAround(cells);
+    if (unlockedBySpecial + unlockedAround > 0) state.lastAction = `解除 ${unlockedBySpecial + unlockedAround} 個封鎖方塊。`;
     const collapsed = logic.collapse(state.board, state.colorCount);
     state.board = collapsed.board;
     render({ fallMoves: collapsed.fallMoves, spawnMoves: collapsed.spawnMoves });
@@ -474,7 +511,7 @@
   function endTurnCheck() {
     if (state.ended) return;
     if (state.moves <= 0) { setStatus('步數用完，請重設再挑戰一次。'); return; }
-    if (!logic.findAvailableMove(state.board)) {
+    if (!findAvailableUnlockedMove()) {
       state.board = logic.shuffleBoard(state.board);
       setStatus('棋盤沒有可走步了，已自動重排。');
     } else {
@@ -521,7 +558,7 @@
 
   function showHint() {
     if (state.busy || state.ended) return;
-    const move = logic.findAvailableMove(state.board);
+    const move = findAvailableUnlockedMove();
     state.hint = move || [];
     setStatus(move ? '已標出一組可交換的方塊。' : '目前無解，已重新排列棋盤。');
     if (!move) state.board = logic.shuffleBoard(state.board);
@@ -536,7 +573,30 @@
   render = renderer.render;
   renderBattleStats = renderer.renderBattleStats;
 
-  const battle = window.Match3Battle.createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, formatNumber, onBattleWin: completeNode, onAfterPlayerAttack: applyBossPhaseIfNeeded });
+  function onEnemyBoardLock() {
+    if (state.ended || !state.board.length) return;
+    const candidates = [];
+    state.board.forEach((row, r) => row.forEach((value, c) => {
+      const pos = { r, c };
+      if (value !== null && !isLocked(pos) && !logic.isSpecialBlock(value)) candidates.push(pos);
+    }));
+    const count = Math.min(3, Math.max(1, Math.floor(state.size / 3)), candidates.length);
+    const picked = [];
+    while (picked.length < count && candidates.length) {
+      const index = Math.floor(Math.random() * candidates.length);
+      picked.push(candidates.splice(index, 1)[0]);
+    }
+    setLockedCells([...state.lockedCells.map(key => { const [r, c] = key.split(',').map(Number); return { r, c }; }), ...picked]);
+    if (!findAvailableUnlockedMove()) {
+      unlockCells(picked);
+      state.lastAction += ' 敵人想封鎖版面，但保留至少一組可走步。';
+    } else if (picked.length) {
+      state.lastAction += ` 敵人封鎖 ${picked.length} 個方塊，可用特殊方塊或消除旁邊方塊解除。`;
+    }
+    render();
+  }
+
+  const battle = window.Match3Battle.createBattleSystem({ state, render, setStatus, clamp, sleepMsFromSeconds, stopTimers, resetRoundStats, formatNumber, onBattleWin: completeNode, onAfterPlayerAttack: applyBossPhaseIfNeeded, onEnemyBoardLock });
   playerAttack = battle.playerAttack;
   enemyAttack = battle.enemyAttack;
 

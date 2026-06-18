@@ -40,7 +40,7 @@
       attackMultiplier: 1, defenseMultiplier: 1, enemyAttackPower: ENEMY_ATTACK,
       attackInterval: 5, enemyInterval: 5, nextPlayerAttackAt: null, nextEnemyAttackAt: null,
       roundStats: createRoundStats(),
-      lastAction: '尚未攻擊。', heroAction: false, enemyAction: false, damagePopups: [], ended: false, magicArmed: false
+      lastAction: '尚未攻擊。', heroAction: false, enemyAction: false, damagePopups: [], ended: false, magicArmed: false, lockedCells: []
     };
   }
 
