@@ -21,13 +21,18 @@
       const defenseMeterMax = Math.max(100, state.enemyAttackPower);
       const healMeterMax = Math.max(100, state.playerMaxHp - state.playerHp);
 
-      $('attackTimer').textContent = formatCountdown(state.nextPlayerAttackAt) === '--' ? `${state.attackInterval}.0s` : formatCountdown(state.nextPlayerAttackAt);
+      const playerCountdown = formatCountdown(state.nextPlayerAttackAt, state.attackInterval);
+      const enemyCountdown = formatCountdown(state.nextEnemyAttackAt, state.enemyInterval);
       $('playerHpText').textContent = `${formatNumber(state.playerHp)} / ${formatNumber(state.playerMaxHp)}`;
       $('enemyHpText').textContent = `${formatNumber(state.enemyHp)} / ${formatNumber(state.enemyMaxHp)}`;
       setBar('playerHpBar', state.playerHp, state.playerMaxHp);
       setBar('enemyHpBar', state.enemyHp, state.enemyMaxHp);
       setBar('playerAttackBar', countdownProgress(state.nextPlayerAttackAt, state.attackInterval));
       setBar('enemyAttackBar', countdownProgress(state.nextEnemyAttackAt, state.enemyInterval));
+      $('playerStageAttackCountdown').textContent = playerCountdown;
+      $('enemyStageAttackCountdown').textContent = enemyCountdown;
+      setBar('playerStageAttackBar', countdownProgress(state.nextPlayerAttackAt, state.attackInterval));
+      setBar('enemyStageAttackBar', countdownProgress(state.nextEnemyAttackAt, state.enemyInterval));
       $('attackValue').textContent = `${formatNumber(attack)} / ${formatNumber(attackMeterMax)}`;
       $('defenseValue').textContent = `${formatNumber(defense)} / ${formatNumber(defenseMeterMax)}`;
       $('magicValue').textContent = `${formatNumber(clamp(magic, 0, 100))} / 100`;
@@ -98,12 +103,11 @@
 
       $('score').textContent = state.score;
       $('moves').textContent = state.moves;
-      $('target').textContent = state.target;
       $('combo').textContent = `連擊 ${state.lastComboCount}（目前 x${state.combo}）`;
       $('playerHp').textContent = `${formatNumber(state.playerHp)}/${formatNumber(state.playerMaxHp)}`;
       $('enemyHp').textContent = `${formatNumber(state.enemyHp)}/${formatNumber(state.enemyMaxHp)}`;
-      $('playerAttackCountdown').textContent = formatCountdown(state.nextPlayerAttackAt);
-      $('enemyAttackCountdown').textContent = formatCountdown(state.nextEnemyAttackAt);
+      $('playerAttackCountdown').textContent = formatCountdown(state.nextPlayerAttackAt, state.attackInterval);
+      $('enemyAttackCountdown').textContent = formatCountdown(state.nextEnemyAttackAt, state.enemyInterval);
       $('roundAttack').textContent = state.roundStats.attack;
       $('roundDefense').textContent = state.roundStats.defense;
       $('roundSpell').textContent = state.roundStats.spell;
