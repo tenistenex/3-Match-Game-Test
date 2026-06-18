@@ -49,7 +49,7 @@ jobs:
           cp -R assets dist/
           test -s dist/index.html
           test -s dist/match3.html
-          test -e dist/.nojekyll
+          test -s dist/.nojekyll
           test -s dist/assets/match3.css
           test -s dist/assets/match3/config/block-types.js
           test -s dist/assets/match3/core/logic.js
