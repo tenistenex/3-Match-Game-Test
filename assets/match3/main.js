@@ -30,9 +30,9 @@
     return Math.round(readNumberInput(id, fallback, range));
   }
 
-  function formatCountdown(target) {
-    if (!target || state.ended) return '--';
-    return `${Math.max(0, Math.ceil((target - Date.now()) / 1000))}s`;
+  function formatCountdown(target, fallbackSeconds = null) {
+    if (!target || state.ended) return fallbackSeconds === null ? '--' : `${Number(fallbackSeconds).toFixed(1)}s`;
+    return `${Math.max(0, (target - Date.now()) / 1000).toFixed(1)}s`;
   }
   function countdownProgress(target, intervalSeconds) {
     if (!target || state.ended) return 0;
@@ -143,8 +143,8 @@
     if (!state.startedAt) { $('timer').textContent = '00:00'; return; }
     const sec = Math.floor((Date.now() - state.startedAt) / 1000);
     $('timer').textContent = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
-    $('playerAttackCountdown').textContent = formatCountdown(state.nextPlayerAttackAt);
-    $('enemyAttackCountdown').textContent = formatCountdown(state.nextEnemyAttackAt);
+    $('playerAttackCountdown').textContent = formatCountdown(state.nextPlayerAttackAt, state.attackInterval);
+    $('enemyAttackCountdown').textContent = formatCountdown(state.nextEnemyAttackAt, state.enemyInterval);
     renderBattleStats();
   }
 
@@ -153,7 +153,7 @@
     state.startedAt = Date.now();
     state.nextPlayerAttackAt = Date.now() + sleepMsFromSeconds(state.attackInterval);
     state.nextEnemyAttackAt = Date.now() + sleepMsFromSeconds(state.enemyInterval);
-    state.timerId = setInterval(updateTimer, 1000);
+    state.timerId = setInterval(updateTimer, 100);
     state.attackTimerId = setInterval(playerAttack, sleepMsFromSeconds(state.attackInterval));
     state.enemyTimerId = setInterval(enemyAttack, sleepMsFromSeconds(state.enemyInterval));
   }
@@ -168,7 +168,7 @@
     const colorCount = readIntegerInput('colorCount', state.colorCount || 4, { min: 3, max: BLOCK_TYPES.length });
     const playerMaxHp = readIntegerInput('playerMaxHpInput', state.playerMaxHp || 100, { min: 1, max: 9999 });
     const enemyMaxHp = readIntegerInput('enemyMaxHpInput', state.enemyMaxHp || 100, { min: 1, max: 9999 });
-    Object.assign(state, { size, colorCount, fallSpeed: readNumberInput('fallSpeed', state.fallSpeed || 420, { min: 1, max: 5000 }), clearSpeed: readNumberInput('clearSpeed', state.clearSpeed || 260, { min: 1, max: 5000 }), attackInterval: readNumberInput('attackInterval', state.attackInterval || 5, { min: 1, max: 3600 }), enemyInterval: readNumberInput('enemyInterval', state.enemyInterval || 5, { min: 1, max: 3600 }), attackMultiplier: readNumberInput('attackMultiplier', state.attackMultiplier || 1, { min: 0, max: 999 }), defenseMultiplier: readNumberInput('defenseMultiplier', state.defenseMultiplier || 1, { min: 0, max: 999 }), enemyAttackPower: readNumberInput('enemyAttackPower', state.enemyAttackPower || 10, { min: 0, max: 9999 }), selected: null, busy: false, score: 0, moves: 30, target: size * 150, combo: 1, currentTurnCombo: 0, lastComboCount: 0, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
+    Object.assign(state, { size, colorCount, fallSpeed: readNumberInput('fallSpeed', state.fallSpeed || 420, { min: 1, max: 5000 }), clearSpeed: readNumberInput('clearSpeed', state.clearSpeed || 260, { min: 1, max: 5000 }), attackInterval: readNumberInput('attackInterval', state.attackInterval || 5, { min: 1, max: 3600 }), enemyInterval: readNumberInput('enemyInterval', state.enemyInterval || 5, { min: 1, max: 3600 }), attackMultiplier: readNumberInput('attackMultiplier', state.attackMultiplier || 1, { min: 0, max: 999 }), defenseMultiplier: readNumberInput('defenseMultiplier', state.defenseMultiplier || 1, { min: 0, max: 999 }), enemyAttackPower: readNumberInput('enemyAttackPower', state.enemyAttackPower || 10, { min: 0, max: 9999 }), selected: null, busy: false, score: 0, moves: 30, combo: 1, currentTurnCombo: 0, lastComboCount: 0, startedAt: null, timerId: null, attackTimerId: null, enemyTimerId: null, hint: [], playerHp: playerMaxHp, enemyHp: enemyMaxHp, playerMaxHp, enemyMaxHp, nextPlayerAttackAt: null, nextEnemyAttackAt: null, lastAction: '交換方塊後，雙方攻擊計時器會開始。', heroAction: false, enemyAction: false, ended: false, magicArmed: false });
     resetRoundStats(state);
     state.board = logic.createBoard(state.size, state.colorCount);
     renderBlockSettings();
@@ -337,7 +337,6 @@
 
   function endTurnCheck() {
     if (state.ended) return;
-    if (state.score >= state.target) { setStatus('恭喜達成目標分數，也可以繼續打倒敵人。'); return; }
     if (state.moves <= 0) { setStatus('步數用完，請重設再挑戰一次。'); return; }
     if (!logic.findAvailableMove(state.board)) {
       state.board = logic.shuffleBoard(state.board);

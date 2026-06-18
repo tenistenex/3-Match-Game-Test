@@ -70,9 +70,7 @@
     <section class="stats" aria-label="遊戲狀態">
       <article><span>分數</span><strong id="score">0</strong></article>
       <article><span>步數</span><strong id="moves">30</strong></article>
-      <article><span>目標</span><strong id="target">1200</strong></article>
       <article><span>時間</span><strong id="timer">00:00</strong></article>
-      <article><span>攻擊倒數</span><strong id="attackTimer">5.0s</strong></article>
       <article><span>連擊</span><strong id="combo">連擊 0</strong></article>
       <article><span>我方血量</span><strong id="playerHp">100/100</strong></article>
       <article><span>敵方血量</span><strong id="enemyHp">100/100</strong></article>
@@ -132,11 +130,19 @@
         <h2>戰鬥狀態</h2>
         <div class="battle-stage" aria-label="角色戰鬥展示">
           <div class="fighter hero-fighter">
+            <div class="stage-countdown" aria-label="我方下次攻擊倒數">
+              <strong id="playerStageAttackCountdown">--</strong>
+              <div class="bar"><span id="playerStageAttackBar"></span></div>
+            </div>
             <div id="heroSprite" class="pixel-sprite hero-sprite" aria-label="我方像素角色"></div>
             <strong>我方</strong>
           </div>
           <div class="versus">VS</div>
           <div class="fighter enemy-fighter">
+            <div class="stage-countdown" aria-label="敵方下次攻擊倒數">
+              <strong id="enemyStageAttackCountdown">--</strong>
+              <div class="bar"><span id="enemyStageAttackBar"></span></div>
+            </div>
             <div id="enemySprite" class="pixel-sprite enemy-sprite" aria-label="敵方像素角色"></div>
             <strong>敵方</strong>
           </div>

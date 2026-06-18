@@ -214,7 +214,7 @@ function assertBoardPanelRendered(elements, expectedSize, message) {
   elements.clearSpeed.value = '';
   elements.resetButton.click();
   assertBoardPanelRendered(elements, 8, 'reset with blank settings');
-  assert.equal(elements.target.textContent, 1200, 'blank board size should fall back without hiding the board');
+  assert.ok(!('target' in elements), 'target score card should not be rendered because it is no longer used');
 
   console.log('match3 basic UI tests passed');
 })().catch(error => {
