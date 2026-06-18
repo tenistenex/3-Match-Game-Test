@@ -85,6 +85,7 @@
       const falling = new Map((options.fallMoves || []).map(move => [key(move.to), move.distance]));
       const spawning = new Map((options.spawnMoves || []).map(move => [key(move.to), move.distance]));
       const hint = new Set(state.hint.map(key));
+      const locked = new Set((state.lockedCells || []));
       const boardEl = $('board');
       boardEl.style.setProperty('--board-size', state.size);
       boardEl.style.setProperty('--fall-duration', `${state.fallSpeed}ms`);
@@ -112,6 +113,11 @@
           div.innerHTML = `<span class="cell-icon" aria-hidden="true">${type.icon}</span>${specialIcon ? `<span class="special-icon" aria-hidden="true">${specialIcon}</span>` : ''}`;
           div.title = isSpecial ? `${type.name}特殊方塊：${specialIcon}` : type.name;
           div.addEventListener('click', () => onCellClick(pos));
+        }
+        if (locked.has(key(pos))) {
+          div.classList.add('locked');
+          div.setAttribute('aria-label', `${div.attributes['aria-label']}（被封鎖）`);
+          div.title = `${div.title || '方塊'}（被封鎖：用特殊方塊或消除周圍解除）`;
         }
         if (state.selected && state.selected.r === r && state.selected.c === c) div.classList.add('selected');
         if (clearing.has(key(pos))) {
@@ -147,6 +153,9 @@
       $('roundDefense').textContent = state.roundStats.defense;
       $('roundSpell').textContent = state.roundStats.spell;
       $('roundHeal').textContent = state.roundStats.heal;
+      const lockedCount = (state.lockedCells || []).length;
+      const lockedCountEl = $('lockedCount');
+      if (lockedCountEl) lockedCountEl.textContent = lockedCount;
       $('battleLog').textContent = state.lastAction;
       const heroFighter = $('heroSprite').parentElement;
       const enemyFighter = $('enemySprite').parentElement;
